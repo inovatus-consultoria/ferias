@@ -542,6 +542,37 @@
 
 </main>
 
+<!-- MODAL EDITAR -->
+<div class="modal-overlay" id="modal-editar">
+  <div class="modal" style="width:520px;max-width:95vw;">
+    <h2>Editar Férias</h2>
+    <p>Altere os dados do período de férias.</p>
+    <div class="form-group">
+      <label>Membro da Equipe</label>
+      <input type="text" id="edit-nome" disabled style="opacity:0.6;cursor:not-allowed;">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div class="form-group">
+        <label>Data de Início</label>
+        <input type="date" id="edit-inicio" onchange="calcularDiasEdit()">
+      </div>
+      <div class="form-group">
+        <label>Data de Fim</label>
+        <input type="date" id="edit-fim" onchange="calcularDiasEdit()">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Observação</label>
+      <input type="text" id="edit-obs" placeholder="Opcional...">
+    </div>
+    <div class="form-info" id="edit-calculo" style="display:none;margin-bottom:16px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModalEditar()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEdicao()">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL DELETE -->
 <div class="modal-overlay" id="modal-delete">
   <div class="modal">
@@ -858,12 +889,73 @@ function dateToStr(d) { return d.toISOString().split('T')[0]; }
 function diasCorridos(inicio, fim) {
   return Math.round((parseDate(fim) - parseDate(inicio)) / 86400000) + 1;
 }
+// ===================== FERIADOS =====================
+function getPascoa(year) {
+  // Algoritmo de Butcher
+  const a = year % 19, b = Math.floor(year/100), c = year % 100;
+  const d = Math.floor(b/4), e = b % 4, f = Math.floor((b+8)/25);
+  const g = Math.floor((b-f+1)/3), h = (19*a+b-d-g+15) % 30;
+  const i = Math.floor(c/4), k = c % 4;
+  const l = (32+2*e+2*i-h-k) % 7;
+  const m = Math.floor((a+11*h+22*l)/451);
+  const month = Math.floor((h+l-7*m+114)/31);
+  const day = ((h+l-7*m+114) % 31) + 1;
+  return new Date(year, month-1, day);
+}
+
+function getFeriadosAno(year) {
+  const feriados = new Set();
+  const add = (m, d) => feriados.add(`${year}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`);
+
+  // Nacionais fixos
+  add(1,1);   // Confraternização Universal
+  add(4,21);  // Tiradentes
+  add(5,1);   // Dia do Trabalho
+  add(9,7);   // Independência
+  add(10,12); // Nossa Sra Aparecida
+  add(11,2);  // Finados
+  add(11,15); // Proclamação da República
+  add(11,20); // Consciência Negra (nacional desde 2024)
+  add(12,25); // Natal
+
+  // Nacionais móveis baseados na Páscoa
+  const pascoa = getPascoa(year);
+  const addOffset = (offset) => {
+    const d = new Date(pascoa);
+    d.setDate(d.getDate() + offset);
+    feriados.add(dateToStr(d));
+  };
+  addOffset(-48); // Carnaval (segunda)
+  addOffset(-47); // Carnaval (terça)
+  addOffset(-2);  // Sexta-feira Santa
+  addOffset(0);   // Páscoa
+  addOffset(60);  // Corpus Christi
+
+  // Estaduais RJ fixos
+  add(4,23);  // Dia de São Jorge
+  add(11,20); // já incluído acima
+
+  // Municipais Rio de Janeiro fixos
+  add(1,20);  // São Sebastião (padroeiro do Rio)
+  add(11,2);  // já incluído acima
+
+  return feriados;
+}
+
+const _feriadosCache = {};
+function isFeriado(date) {
+  const year = date.getFullYear();
+  if (!_feriadosCache[year]) _feriadosCache[year] = getFeriadosAno(year);
+  return _feriadosCache[year].has(dateToStr(date));
+}
+
 function diasUteis(inicio, fim) {
   let count = 0;
   const d = parseDate(inicio);
   const end = parseDate(fim);
   while (d <= end) {
-    if (d.getDay() !== 0 && d.getDay() !== 6) count++;
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6 && !isFeriado(d)) count++;
     d.setDate(d.getDate() + 1);
   }
   return count;
@@ -1186,6 +1278,9 @@ function renderHistorico() {
         <div class="ferias-item-days">${x.dias}</div>
         <div class="ferias-item-days-label">${tipo}</div>
       </div>
+      <button class="btn-delete" onclick="abrirEditar(${x.id})" title="Editar" style="color:var(--ink3);">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
       <button class="btn-delete" onclick="abrirDelete(${x.id})" title="Remover">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14a2,2,0,0,1-2,2H8a2,2,0,0,1-2-2L5,6"/><path d="M10,11v6"/><path d="M14,11v6"/><path d="M9,6V4h6v2"/></svg>
       </button>
@@ -1224,6 +1319,67 @@ function renderEquipe() {
         <div><div class="func-name">${m.nome}</div><div class="func-type">${TIPO_LABEL[m.tipo]}</div></div>
       </div>${detalhes}</div>`;
   }).join('');
+}
+
+// ===================== EDITAR =====================
+let editTarget = null;
+
+function abrirEditar(id) {
+  const x = ferias.find(f => f.id === id);
+  if (!x) return;
+  const m = getMembro(x.funcId);
+  editTarget = id;
+  document.getElementById('edit-nome').value = `${m.nome} — ${TIPO_LABEL[m.tipo]}`;
+  document.getElementById('edit-inicio').value = x.inicio;
+  document.getElementById('edit-fim').value = x.fim;
+  document.getElementById('edit-obs').value = x.obs || '';
+  calcularDiasEdit();
+  document.getElementById('modal-editar').classList.add('open');
+}
+
+function calcularDiasEdit() {
+  const inicio = document.getElementById('edit-inicio').value;
+  const fim = document.getElementById('edit-fim').value;
+  const container = document.getElementById('edit-calculo');
+  if (!inicio || !fim) { container.style.display='none'; return; }
+  if (inicio > fim) { container.style.display='block'; container.innerHTML='⚠️ Data de fim deve ser após data de início.'; return; }
+  const x = ferias.find(f => f.id === editTarget);
+  if (!x) return;
+  const m = getMembro(x.funcId);
+  const dias = calcDias(m, inicio, fim);
+  const tipo = m.tipo==='clt'?'dias corridos':'dias úteis';
+  container.style.display='block';
+  container.innerHTML=`📅 <strong>${formatDate(inicio)}</strong> a <strong>${formatDate(fim)}</strong> = <strong>${dias} ${tipo}</strong>`;
+}
+
+async function salvarEdicao() {
+  const inicio = document.getElementById('edit-inicio').value;
+  const fim = document.getElementById('edit-fim').value;
+  const obs = document.getElementById('edit-obs').value.trim();
+  if (!inicio || !fim) { alert('Preencha as datas.'); return; }
+  if (inicio > fim) { alert('Data de fim deve ser após data de início.'); return; }
+
+  const idx = ferias.findIndex(f => f.id === editTarget);
+  if (idx === -1) return;
+  const m = getMembro(ferias[idx].funcId);
+
+  // Verificar conflito ignorando o próprio registro
+  const conflito = ferias.find(x => x.id !== editTarget && x.funcId === ferias[idx].funcId && !(fim < x.inicio || inicio > x.fim));
+  if (conflito) { alert('Esse período se sobrepõe com outro já registrado.'); return; }
+
+  ferias[idx].inicio = inicio;
+  ferias[idx].fim = fim;
+  ferias[idx].dias = calcDias(m, inicio, fim);
+  ferias[idx].obs = obs;
+
+  closeModalEditar();
+  await salvarFerias();
+  renderHistorico();
+}
+
+function closeModalEditar() {
+  document.getElementById('modal-editar').classList.remove('open');
+  editTarget = null;
 }
 
 // ===================== DELETE =====================
