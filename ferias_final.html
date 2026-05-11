@@ -638,7 +638,7 @@ async function fazerLogin() {
         return;
       }
       const url = popup.location.href;
-      if (!codeCapturado && url.includes('nativeclient') && url.includes('code=')) {
+      if (!codeCapturado && url.includes('ricardo100901.github.io') && url.includes('code=')) {
         codeCapturado = true;
         clearInterval(poll);
         const urlParams = new URLSearchParams(url.includes('?') ? url.split('?')[1] : url.split('#')[1]);
