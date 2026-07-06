@@ -782,7 +782,7 @@ let excelDriveId = null;
 
 // ===================== MSAL (Microsoft Auth) — PKCE =====================
 // Funciona abrindo o arquivo diretamente pelo Explorer (file://)
-const REDIRECT_URI = 'https://ricardo100901.github.io/ferias/ferias_final.html';
+const REDIRECT_URI = 'https://inovatus-consultoria.github.io/ferias/ferias_final.html';
 
 function generateRandom(length) {
   const array = new Uint8Array(length);
@@ -835,7 +835,7 @@ async function fazerLogin() {
         return;
       }
       const url = popup.location.href;
-      if (!codeCapturado && url.includes('ricardo100901.github.io') && url.includes('code=')) {
+      if (!codeCapturado && url.includes('inovatus-consultoria.github.io') && url.includes('code=')) {
         codeCapturado = true;
         clearInterval(poll);
         const urlParams = new URLSearchParams(url.includes('?') ? url.split('?')[1] : url.split('#')[1]);
