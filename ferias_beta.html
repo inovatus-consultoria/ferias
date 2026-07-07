@@ -1,0 +1,2192 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Férias — Gestão de Equipe</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #F4F6F5;
+    --surface: #FFFFFF;
+    --surface2: #EAF0EE;
+    --ink: #1A2420;
+    --ink2: #4A6058;
+    --ink3: #8AA09A;
+    --accent: #2D5C4E;
+    --accent2: #3A8C7A;
+    --gold: #B8963C;
+    --green: #2D5C4E;
+    --green-light: #E8F2EF;
+    --red: #C83A3A;
+    --red-light: #FBF0EF;
+    --amber: #B8963C;
+    --amber-light: #FBF5E8;
+    --border: #D0DDD8;
+    --radius: 12px;
+    --shadow: 0 2px 16px rgba(26,36,32,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  /* LOGIN */
+  .login-screen {
+    position: fixed; inset: 0;
+    background: var(--ink);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999;
+    flex-direction: column; gap: 0;
+  }
+
+  .login-box {
+    background: var(--surface);
+    border-radius: 20px;
+    padding: 48px;
+    width: 380px;
+    text-align: center;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.3);
+  }
+
+  .login-box h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 32px; color: var(--ink);
+    margin-bottom: 4px;
+  }
+
+  .login-box p {
+    font-size: 13px; color: var(--ink3);
+    margin-bottom: 32px;
+  }
+
+  .btn-microsoft {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    width: 100%; padding: 14px;
+    background: #2D5C4E; color: #fff;
+    border: none; border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 500;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .btn-microsoft:hover { background: #1e4035; }
+
+  .login-status {
+    font-size: 12px; color: var(--ink3);
+    margin-top: 16px; min-height: 20px;
+  }
+
+  /* LOADING */
+  .loading-overlay {
+    position: fixed; inset: 0;
+    background: rgba(245,242,236,0.85);
+    display: none; align-items: center; justify-content: center;
+    z-index: 500; flex-direction: column; gap: 12px;
+  }
+  .loading-overlay.show { display: flex; }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 13px; color: var(--ink2); }
+
+  /* SIDEBAR */
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0;
+    width: 220px; background: var(--ink);
+    display: flex; flex-direction: column;
+    z-index: 100;
+  }
+
+  .sidebar-brand {
+    padding: 28px 24px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .sidebar-brand img {
+    filter: brightness(0) invert(1);
+  }
+
+  .sidebar-brand h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px; color: #fff; line-height: 1.1;
+  }
+
+  .sidebar-brand span {
+    font-size: 11px; color: rgba(255,255,255,0.4);
+    letter-spacing: 0.08em; text-transform: uppercase;
+    display: block; margin-top: 2px;
+  }
+
+  .sidebar-user {
+    padding: 12px 24px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    font-size: 12px; color: rgba(255,255,255,0.5);
+  }
+
+  .sidebar-user strong { color: rgba(255,255,255,0.8); display: block; font-size: 13px; }
+
+  .sidebar-nav {
+    flex: 1; padding: 16px 12px;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-radius: 8px;
+    cursor: pointer; color: rgba(255,255,255,0.55);
+    font-size: 14px; font-weight: 400;
+    transition: all 0.15s;
+    border: none; background: none; width: 100%; text-align: left;
+  }
+  .nav-item:hover { color: #fff; background: rgba(255,255,255,0.06); }
+  .nav-item.active { color: #fff; background: var(--accent); font-weight: 500; }
+  .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  .sidebar-year {
+    padding: 16px 24px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .year-btn {
+    background: rgba(255,255,255,0.08); border: none;
+    color: rgba(255,255,255,0.6);
+    width: 28px; height: 28px; border-radius: 6px;
+    cursor: pointer; font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .year-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+  .year-label {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px; color: #fff; flex: 1; text-align: center;
+  }
+
+  .btn-logout {
+    margin: 0 12px 16px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: 8px;
+    cursor: pointer; color: rgba(255,255,255,0.4);
+    font-size: 12px; border: none; background: none;
+    transition: all 0.15s; width: calc(100% - 24px);
+  }
+  .btn-logout:hover { color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.06); }
+
+  /* MAIN */
+  .main { margin-left: 220px; min-height: 100vh; padding: 32px 36px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .page-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 28px;
+  }
+
+  .page-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 32px; color: var(--ink); line-height: 1;
+  }
+  .page-subtitle { font-size: 13px; color: var(--ink3); margin-top: 4px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px; border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer; border: none; transition: all 0.15s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #b54d22; }
+  .btn-ghost { background: transparent; color: var(--ink2); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--surface2); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+  #dash-title {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+  }
+
+  .saldo-list {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    overflow: hidden;
+    margin-bottom: 28px;
+  }
+
+  .saldo-row { display: flex; border-bottom: 1px solid var(--surface2); }
+  .saldo-row:last-child { border-bottom: none; }
+
+  .saldo-row-bar { width: 4px; flex-shrink: 0; }
+
+  .saldo-row-info {
+    width: 140px; flex-shrink: 0;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 8px 14px;
+  }
+  .saldo-row-name { font-size: 13px; font-weight: 600; color: var(--ink); }
+  .saldo-row-type {
+    font-size: 10px; color: var(--ink3);
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+
+  .saldo-row-periods { flex: 1; display: flex; flex-direction: column; }
+
+  .saldo-period-line {
+    display: flex; align-items: center; gap: 14px; padding: 10px 18px;
+  }
+  .saldo-period-consolidado { cursor: pointer; }
+  .saldo-period-expandido { background: #FAFBFA; }
+
+  .saldo-period-label {
+    width: 90px; font-size: 11px; font-style: italic; color: var(--ink3);
+  }
+  .saldo-period-bar {
+    flex: 1; height: 5px; background: var(--surface2);
+    border-radius: 99px; overflow: hidden;
+  }
+  .saldo-period-bar-fill { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
+
+  .saldo-period-metric { width: 64px; text-align: right; }
+  .saldo-period-num {
+    font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 15px;
+    display: block;
+  }
+  .saldo-period-metric-label {
+    font-size: 9px; text-transform: uppercase; color: var(--ink3);
+  }
+
+  .saldo-period-chevron {
+    width: 14px; font-size: 11px; color: var(--ink3); text-align: center;
+  }
+
+  .alert {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 16px; border-radius: 10px;
+    margin-bottom: 16px; font-size: 13px;
+  }
+  .alert-amber { background: var(--amber-light); color: #8a6010; border: 1px solid #e8c86a; }
+  .alert-red { background: var(--red-light); color: #8a2020; border: 1px solid #e87a7a; }
+
+  .gantt-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden; box-shadow: var(--shadow);
+  }
+
+  .gantt-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 24px; border-bottom: 1px solid var(--border);
+  }
+  .gantt-title { font-weight: 600; font-size: 15px; }
+  .gantt-inner { overflow-x: auto; }
+  .gantt-table { width: 100%; border-collapse: collapse; min-width: 900px; }
+
+  .gantt-table th {
+    font-size: 10px; font-weight: 600; color: var(--ink3);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    text-align: center; padding: 8px 4px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .gantt-table th.name-col { width: 120px; text-align: left; padding-left: 20px; }
+  .gantt-table td { padding: 6px 2px; vertical-align: middle; border-bottom: 1px solid var(--surface2); }
+  .gantt-table td.name-cell { padding: 6px 12px 6px 20px; white-space: nowrap; }
+  .person-label { font-size: 13px; font-weight: 500; }
+  .person-label-sub { font-size: 10px; color: var(--ink3); }
+  .gantt-row:last-child td { border-bottom: none; }
+
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; }
+  .tab {
+    padding: 8px 16px; border-radius: 8px;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    border: none; background: none; color: var(--ink3);
+    transition: all 0.15s;
+  }
+  .tab.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+
+  .ferias-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 10px;
+  }
+  .ferias-item-color { width: 4px; height: 48px; border-radius: 99px; flex-shrink: 0; }
+  .ferias-item-info { flex: 1; }
+  .ferias-item-name { font-weight: 600; font-size: 14px; }
+  .ferias-item-dates { font-size: 12px; color: var(--ink3); margin-top: 2px; }
+  .ferias-item-days { font-family: 'DM Serif Display', serif; font-size: 24px; color: var(--ink2); }
+  .ferias-item-days-label { font-size: 10px; color: var(--ink3); text-align: right; }
+
+  .btn-delete {
+    background: none; border: none; cursor: pointer;
+    color: var(--ink3); padding: 6px; border-radius: 6px;
+    transition: all 0.15s; display: flex; align-items: center;
+  }
+  .btn-delete:hover { background: var(--red-light); color: var(--red); }
+
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+  .func-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px; box-shadow: var(--shadow);
+  }
+  .func-avatar {
+    width: 48px; height: 48px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px; color: #fff; flex-shrink: 0;
+  }
+  .func-name { font-weight: 600; font-size: 16px; }
+  .func-type { font-size: 11px; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.07em; margin-top: 2px; }
+  .func-detail { font-size: 12px; color: var(--ink2); margin-top: 8px; }
+  .func-detail strong { color: var(--ink); }
+
+  .form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px; max-width: 560px;
+    box-shadow: var(--shadow);
+  }
+  .form-group { margin-bottom: 20px; }
+  label {
+    display: block; font-size: 12px; font-weight: 600; color: var(--ink2);
+    text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px;
+  }
+  select, input[type=date], input[type=text] {
+    width: 100%; padding: 10px 14px;
+    border: 1px solid var(--border); border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; color: var(--ink); background: var(--bg);
+    transition: border-color 0.15s; outline: none;
+  }
+  select:focus, input:focus { border-color: var(--accent); background: var(--surface); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-info {
+    background: var(--surface2); border-radius: 8px;
+    padding: 12px 14px; font-size: 13px; color: var(--ink2); margin-top: 8px;
+  }
+
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(26,24,20,0.5);
+    z-index: 1000; display: none;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border-radius: 16px;
+    padding: 32px; width: 480px; max-width: 90vw;
+    box-shadow: 0 24px 80px rgba(26,24,20,0.2);
+  }
+  .modal h2 { font-family: 'DM Serif Display', serif; font-size: 22px; margin-bottom: 6px; }
+  .modal p { font-size: 13px; color: var(--ink2); margin-bottom: 24px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+  .empty { text-align: center; padding: 48px 24px; color: var(--ink3); }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-text { font-size: 14px; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+  /* GERENCIAR EQUIPE */
+  .membro-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 10px;
+  }
+  .membro-row-avatar {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px; color: #fff; flex-shrink: 0;
+  }
+  .membro-row-info { flex: 1; }
+  .membro-row-name { font-weight: 600; font-size: 14px; }
+  .membro-row-meta { font-size: 12px; color: var(--ink3); margin-top: 2px; }
+
+  /* MODAL MEMBRO */
+  .form-select-styled {
+    width: 100%; padding: 10px 14px;
+    border: 1px solid var(--border); border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; color: var(--ink); background: var(--bg);
+    outline: none; transition: border-color 0.15s;
+  }
+  .form-select-styled:focus { border-color: var(--accent); background: var(--surface); }
+
+  /* CALENDÁRIO */
+  .cal-mes {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow);
+  }
+  .cal-mes-title {
+    font-weight: 600; font-size: 13px; color: var(--ink);
+    margin-bottom: 10px; text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .cal-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+  }
+  .cal-dow {
+    font-size: 9px; font-weight: 600; color: var(--ink3);
+    text-align: center; padding: 3px 0;
+    text-transform: uppercase;
+  }
+  .cal-day {
+    font-size: 11px; text-align: center;
+    padding: 4px 2px; border-radius: 5px;
+    cursor: default; position: relative;
+    line-height: 1.2;
+  }
+  .cal-day.hoje { background: var(--accent); color: #fff; font-weight: 700; }
+  .cal-day.feriado { background: var(--amber-light); color: var(--amber); font-weight: 600; }
+  .cal-day.fim-semana { color: var(--ink3); }
+  .cal-day.empty { }
+  .cal-day[title]:hover::after {
+    content: attr(title);
+    position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: #fff; font-size: 10px;
+    padding: 3px 7px; border-radius: 5px; white-space: nowrap;
+    z-index: 99; pointer-events: none;
+  }
+  .cal-legenda {
+    display: flex; gap: 12px; margin-bottom: 16px;
+    font-size: 12px; color: var(--ink2); flex-wrap: wrap;
+  }
+  .cal-legenda-item { display: flex; align-items: center; gap: 5px; }
+  .cal-legenda-dot { width: 12px; height: 12px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-screen" id="login-screen">
+  <div class="login-box">
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHQAAAAgCAYAAADDhVzGAAARD0lEQVR42u1aaXBc1ZX+zr23u9WtDRlb1mILLAiBNgYbxQFvyNhATBWTzFTylIVhAgTatqS2ZBwmTGWS51fZKimCLLQQq7ATMuMsbkJmoIYxjCF6tmDARMFMxg1mbMervFu2tt7eu2d+qFsIWZbt4ARIfKq6qrvfffe8e5bvfOfeB1yUi3JRPrwiz2UQMwiAsG3wRZNdlA+FMDMZhiH/2u1AAPDQff6Sh+/2XjX8v4vy4RQx1kWzchCSs5BY4/U4W813x9NHKTMBIBwOX1Edrv/cX7pD1VgXV7bDtQhwHZ8J5U74LpI67UwGIFBZeXpAzLc1LOgzmJdMc+V7YC8ajXIkEnEzvw3DkJFIRKd1jCqGYchgMMiWZWkAZBiGCAaD7wkyy7JcALxy5UoJwEm6fKsS+L5pmv92mm7TFLAsHkMnwTQJg/oGg900xciESM835rMPzVdZOTb8FxayGYxwWoe2zmjTP0NmY5RalTbA6EgweO1cs57OZc7MddM0FQBU19bdU11Tt+NCLP5c9J6PbS54jRwLroiIq6urp3qASxtbWzeZpiksy9LFt84pUyQWMHg6MxcRRIrBbzHjqa4XO96BCZHJ1Mw9hmHkF5eWfZG1vhGAHyT2QPO/NzU9+goArFixIjsedxYeOdK1IRKJJM/wvFxdvWwuQH2trY1b77zzzkB5+cfuYKI5YC4BUZyYtvT1df/L2rVre0Oh1Z62tsWpJdXhu31eb4Pr8FcBwOMhSjhub0vTql9dHfrStTLbfyDasObEMAQa0ndl+N4JHjdW+FbrL7Zl1rJ48eLSrEDOl1xXX88MJYl2ayE2Nq96ZOPwe0d4WsCydOGCGyf6lHe+Zn0NGIVac9ZwsyuPpHgcv6st36y82fK6I7Hs7zas6dlhmhBny9SzRYuybVvfOGvuwyzU4i2vvdpm2zZKFs75jlRqDTTfoMEgTd0MFkTiZiGFlVdehp61e22YpjDnzyfLsnR1dXhRwaUTNrHmGQAfZo0BIr5WKvX1T940e1rZ5NJn/H6/lyHeCATy3nn99Vf/1zRNZdu2Hh58oVAooDy+d1igfeYnZl4zsaj0Jc18OzMzNI4TkCWkqMrKCqyYPr3ixdWrv9EFAJ+c+cmpXm/WFzTrKwCeJYSczZo/1n/Z5J//psD/Blx377Etb75ZaVaqPfYeDQCZ7xNm3/AAC/XI8de2Ntu2zUuX1n7eH8jdqDWXatYHBZAC0fWCqHb27LkPTK+Y8cZvt2zZa5qmsG2bhzKztVWXLJh9j1Lep4XH82Xp9c4nqWZKj2fG8I/yqBmJFO4o9Z/c+/HxsfsTfYnS9q1YX1MIEYmODefqHPvQOBH1DRVCxme16/yka+PLD44cW7Zw7q2s5H9NWjh7137LWmcBVFNTc5Xy+P5Ta+drjzU++oPh46url1/p86lXCotKVzc1rbq3tnb5EyQ5DGAdgOE1S1qW5SoV+CwRBlofW7W+trbu8652Hz7YtXft8DoMAMvqVzypPPLZcDh8RVNTUwIgfyIR72ppbpw+fFwzgKuX3eNqjBn5moicdEAVS+VZ52inrqnx0Zbhg0KhUH52dv4SBZWpozTkzEjELV0w1xBe9WMQ4CaSrwP8tGZ+SzENDJ/HAaCEkm/2lm1Pdhe+lfAoeZMx1V8VicRGzfzzdSgREQ2vm4x+ZhwFAFRWZqWfASg8KvZGOjaWLpj9LRBZBKxjgEHqm67j2M3Nq36QJjQZqBeWZe1YvLj273xZ3o6vfGX5CubkDwV5ty9dWl9uWdauDMSlnctCIKxd/jkANDc3/jLzSOFw2NfTM47Gjeuh/ftnJQ8eiCyZWFR6UmsxH8DzRBAAUaa+RaNRGkaszqE2sQQA5QvMAXCkadWjLaFQyNPd3U3BYFBHo1Fua2s7BeD7w4jZIImMRHT5rRX5ceZGEKATzrcPvNTxzbORp0MAjtYtme/N8d8GX/c7AJ411hsiUvXe4D1vh46yOkHMnqGAsm1nKBKNqVJ0H3hGMx685vbbx0VfeOEEEc1kjVbDMGRBQYGwLCuVmSlt4NeOnzjV7fPRTS0tLc/V1tZHhcISAP8IQJimCcuydCgcvoKIZrKLrwCAYZregoMHua2tLTWYhRlpAIBYTU39Lg2aBuB5ZkFEQ0bG2SJ9FILOAMCO3kMeWXzPPUsnt7U9vi/DEYLB4BABG2SlaT2VlRK27SS19w4VyCp2Y/HNB156+RsACBUVHpSXjxpQVxYVqR1NTcks7nvT6836TAI0A8CzR7YF6X1D7hnS9nRjBCMMCzp184390qOoW/fnADihNXsIlIhEIq5pmiPbC20YBk2cOMkhBT8AYkYrEb5pGMY/WZblhkIhBUB7WSxhYFtLS8PvDcOQEctKDsJ23XSl1GyXdREAR5I45DipKAmScFxxQfrZNCQ//vhjr9eE658uGJf329q6B+vdZGyDZVndmfKQJpKjxIOcS0IwGL9KO1OhszOFzs5R9ZWalbQDYA21XbsMEE8ZvNKOP41Dz24AIiF4ZIM/VgooEikArBSvczU9cunEktsBbCguLnYNw5AM8WWGNgFQMBikUCg0PhDI+xkINzqOu0sAxxhQDC4gKfN8vqyy/lRf/4Vcl2EYsqVplbGs/qtfl0L8UHgDzcuWPbibCK86jhshovaR/WQ6actYa2KinQAY5eX6TM58L39x+8EaIMoFADtayH98P/kn2LHB2MyDAaCxsfEkmJ9RoDoAbFmWnlA06TYAeU4i9rP0f47HG3iWCZcm4v3XNjc1zGhqarituanhlqbHHp0+flzeVfF4fBcRZV/IdUSCQQagH1v1yLe2/u71Mu26f8vETzFQ7vH6nqmv/+qGUCiUz8zEzITB8WBAgRmSOXFeOAiRAxIAc3wwoPDBZOhpkSOEPguTZu3SUIC5rm6UStqhUH1xW9uqgwJcD8IzaeKB2trl15Ogm7qPH5n005/+9IBpmioajTIABINBsizLqa6pS0Gchn+j1k4arYSMJtEoMTNVRSIiUlXl2La9GcBmAN8LhULF/uy8Dq830EpEd61fv16ivZ0G4ZiOg4g1dD4A4MiRMQP8KOYLwHbAmEaCmBi7AOBPV0PPQbK0JgAgQQli5JmmKUpKSmgkhBUVFSnN5IOb7AMAY/16+XhV1Ss1tfVdXi++EAqFmgH6FJjnDmWzdi4XpI7HYrFDpmmqzFZfZk7TNMXRYyfFcIcRgd/TTqQbfQb6iUQhTFP0lRwkwB4ZAO8iWSTiEhEMwwAzU1VVlQgGg3TixAnZ1NR0cOnS2hVSeZ4AQFVVVW5FRYWnc3CSncqrSCTpBtM0n/7J7t3q8vnzz2C5dtiWlSy+884ASWm48QRpzS8NQm6UPzCHeqQSabhtF0L+vWVZPwCgM8dYhmGgqqrKXbq09jNSIVt5qBMACjZuFABcMK9hoi8K5XUB3tPcvOrld9sYtU1KeWl+/oRplmVtNYz1EoggnaFsWZaurqlLEmfIiv4DWBYtWrTIt2HDhkRlZaX6eMlBagM0AS+C6MuwrIZOQGe2544OOtJh6H4B0gBw30MP5e7csiUViUTiRATTNDkajSIYDLqDgSMnAhzPBE55ebnu7OyEZrx8stfd1tcnL0kz4PieMWz3saVfKlde32MyN7vcOdXz+nVHBjZvHwxA9307lIgYzPxezjM25SeAU66jASDOzrdyhdpeV//QE7GBUysysBmJRBAO19+uPN5fJJKplc2NjScNw5CrV6922traADhPAN7agD/7e8lE4p8z6J1uY3bU1NT/Mjcv54Ul4fCnf9RU9epw/eFweBIJT4nrpAQA9Pefejk3r+DYVVdP/VEsFnvAtm3HtgczkV3xbeHF/129/P5WPnXka9vXRnoBIAq4V4bvyhNCVrDL+QDgiyWqbqi46bvTplfU9548/mvLsuLvbpLU3ejN8jYkk6nvDdsMGdyQmKd+c6U6sj5HOp41M++cG8WEW3zadXUm+dMcgyT5AZrKgm6Vudk5bt/AKcnigaFDBFyIGqrZw2DfsILnY6Kz3ZuVSKU0AKxtaelavLh2rj/g/5k/kLczHK7fqUEJQVQspSxyHec7rc0N305nXxrS1suWlqqu2nD9JiL6bH+/+68AsHLlSjedGSIajf5DcWlZc5bKejG8bPl+zThMzJKEKARovFRip5NCOwB68skn4zU1NZ8m6Xnm+ukV+6Zdd0OXlDKrLxa/d01L85Zra+6u1FlZ6zh/wq6r6+7dxYwECAVCUDFIxFinGgBQr8/zC+U4hUqIxrxLxjfU1tbvZaK4IEyQ0jPZdd221uZVmbU4AMDrDUlVEec/fnjdtJlX5XzusD562f8cLr47v6gAbsoFRpR5dl04/TE4fQObkIwv39ay7s1MeXhfm/MAE0C8eHHd5VKmLmltbd0KACULZ81gEscPbnx572gk48pFi3z98ZOfKOlNbens7EwN2+1BOLy8kkjcALCfBfb0JOMvPtnaeihzEDDiYAD33x8u1SIxeW1b23+fidBUV1dfppR/vtZ6MhFSRGKP1ry1ufnRt0eskw3D8JeUTP6UCy4jTQNaJ37dMn58d8ZYU5ffd4urMYMEAmAcE6Df972xo3OPbceH60/Pc7PLfC0xZbHAgVTcbV+9unH3yOdkBhGBWx+eVhAs8xhOf9+++3bNSeUEZLlOJBgshvzAUqSUEMfY1TujTT+ODq/1H6qD17GOlM7x1RC60HpPOwk5x1ZirDnPpT07zwWcV2t5TsqZmVauXElD21lnPxAe2pAeqW/4YXR06lRebxh6rJYhwyQjp8+FhQsXXjowMCAnTZp0PBgMckdHRwERZc+ZM6crGo1yb2+v2rBhQyIYDHqj0Why0aJFvv7+/nHXXHPNMQDYu3ev2LBhQ7KyslLatu1WVFSozvJyfRPg9Zw6Nd7V2i0tKDgcDAb5+eefLxZC9Lzyyiu9wWDQW1JSMj47O3vgrrvu6o1EIt6CggKnuLjYbW9v99q2nRjNNsyg9pWV8mjU5ioYqAyO3oIUTo1yZFuQ/5is/Ci+H0QAeN68ecVa63FElJJSnkilUgkiKhdC9BBR1qZNm96aM2fO3wQCgZe6u7unTJky5a3Dhw9fJ6XsicVi3QDgOM4lU6ZM2X/ixIlJR48ePez3+8tee+21t4PBoKewsHAGM5+ybXv7LbfcEtRa9zNzQX9///aCgoLxAHzxeNwfi8V2CCEmEdGhLVu29MybN+/2gYGBjs7OzoEPwjgCH1Fh5oLc3NwdHR0d7xQWFnb7fL5CpdSezZs3/0FK6a2oqPAw875EIlGulPJGIhEmoqOJREIppVgpJaWU+qmnnko6jiMcxyHXdTUAjkajSWY+AGD/IEdxvbZt71ZKdeXk5OSlUimttc4VQuQDSHm9Xo8QIjVr1qxCIUQyOzu79INKmI+sQ4mod2BgoGzevHlTDh48OC6VSp0AMGn27NklWmu3vLxca637tNaHpJSXAdCpVMoHwJFSTozFYv0ejyfv5ptvvlxr7fr9fi2lvGTu3LkFAMh1XS+ALACQUup58+YVu65bDKDP5/ORUmq31vrwhAkThOM4Ojc3V0gpx2dnZ79NRNmVlZXqvE5z/oodygCwefPmfY7j9AshUgsXLjze0dHR7bruYSmlD8DbkUjE9fl8+zs6Oo6mUqkXASAQCByTUmoAOzo7OweklF1CCF6wYMGezs7OmJRyX/p+jsVi+wCcBICenp4oM/uVUvts2+7Lz88//MILL3THYrE/5ObmOr29vTuTyWQiJydn53PPPXeor69vW2Fh4cWX0v9C5OJ7y+/TeDTG75FGPtt4GsMhdNFZF+WiXJT3J/8PaEw4J52BWAEAAAAASUVORK5CYII=" alt="Inovatus" style="width:120px;height:auto;margin-bottom:6px;">
+    <p style="margin-bottom:24px;">Sistema de Gestão de Férias</p>
+    <p style="font-size:10px;color:var(--ink3);margin-top:-16px;margin-bottom:20px;">vB · 07/07/2026 16:41</p>
+    <button class="btn-microsoft" onclick="fazerLogin()">
+      <svg width="18" height="18" viewBox="0 0 21 21" fill="none"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+      Entrar com Microsoft
+    </button>
+    <div class="login-status" id="login-status"></div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">Carregando...</div>
+</div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar" style="display:none">
+  <div class="sidebar-brand">
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALYAAAAyCAYAAADx0SHKAAAdvklEQVR42u18e3xV1Zn28659ObfcSCAQBFHEUYPS1oxFET1gQekMVmu783NqrRUxkISgdmb6fXP5vp1d/WZsO9OvIgaIiDfar+XUqqNtmbYIpxAUNLVeCFrQQgUDgVxOknPde6/3++Psg4dLIIBWbM/z++1fkpOz9lp7rXe963mfd60NFFBAAQUUUEABBRRQQAEFFFDARwgyTahrDCiFriiggL9wGIahmKYpCj3xEXvdUy1TN7cqMLrywDdsSe/d/5j9OANEABe6tIAzASftOUwTCgAurzj41aoK597SoPPYXbfoFxDApomCJzoBmpqaLm9svPvS03AsBQwD6imUkdkfWvvBmPtuxsYeqIH9QIYsq+Cxj7PKsWEYAcnKCyDuAzDO60tCYaX7+A3bsrKGff/jifZweMLkaHR3Coh9rAZzphjuib6UTCaJGWkiss+kCXcGUF3O+y5/LIadR0kEsCtTWVmrRCIReYwGEQxDoKuLUFnJOPw7hHA4q6ZEo+5wH8YLukRHRwdHIpFcOTIMQ1RXVxMAaVmWPDJYq66uJsuy3JPtNNM01exktpxDI8BMzc3NOSUoVx8zM0UiEbFt27bj1kUEApgMw1Crq6tlZ2cnVVVV8QeOwytrmgIdHYTscw7XPAi1hsCxx+NQ/+W3+0T9d1JGPPR4D9e4vT4GEZ2Jq5hhKB/2941h3tM42bpPYuAMY41yEpNCHOm55s6dG2xovDvWuOiuXX9qzzxcJcY0TWF8eOMnJk2a5MMQ16RJk3wANDYhDAOBOXPg+zhVEQBAXV2dpmnBhZL4vWVLH3iGmYmIDs2y0bOnhFRZfJkgupLBn2GmcwAuZwZI4CBIvEnSXaf3pZ9/t709BtMUOLa3OLREzZvXMCFU7PsiGDMBOo9ZFpEQMUjsALAuHu97dtWqVe/nBtGyLFlf33Stz+efnMnEH25paRkc5vJLALi+cfHtRKS2LH1gZa5MXV3dSJ8vOIOJZoBxCQFjmNlHQnQT8KaU+PnOnR3PrF27Nm2apvA8IAHg2bNnh86/YPJuQUIBO98iUjjXb0TEQigYHEw9tXLlg3uq53/l07ZKxWO373kxGo06w2nv+QuMs9SiEeepicE33lj2w94jl/f6+voaVQvcCGAaM49nhkYCvQDeIUZbJuP8csWKBztO2qgjEbe6ulqPjR05C+AwQ04moAoSRSD4eOhGs4RwqkRswRfGv/HvpGI0SzrQn1Zv+d6TmR2mCcpR34+ciuQGQggxIhgKLkkmU28AeKa2tlYAkBXTphX5/dQM0N8pAV8VAXAdB2y7SQJiRGBmTFF19TJSfLdnhHhv3Mwr/scey/p/uU7Kf3b21qWGRXebmqr+c3FxiZ5IxJHJZPqIKMFSTvT7A1P8/sCXhCK+XV/f9C3Lsv7DNE0dQIYU8TcjR426a++edBpAi2maSj61OJbHj0QisqHhrk+XlZWtisViO0zTfKSzs3OM5gvdrQhRX1xcUuy6LuLxQTDLgyQowyyrA8GiSzVN+9oFF05+ffz4c+dblvWyZ9wMAGVlZUSAretahc9X/D0iyu9X+Hw+DCb3HATwA+nXfqj69It2nVNZhSj2HWfiI2yaStSyHNVffLteVnRv2sl8CcBPa+rq1FdWrHAWLFgQ1LTgkkAweIfPp2NgYAAMPkCAA8ZFgUDgMz6f/8vJZAJNd/398xk3fX/P/v0vrVmzRuY7q6GMelz48jn9uvYfQqHJgACzyM4l5QTekxk+n46dsZFz/Apv0QLURJATbNe9D0Dt5I5TV9lOuaCmaZxKJR0i9AFAV1cXAWC/7lYrft83AARlMv19J5WZK2z3PNtRKveuaztr77q2cX5KjeZ4+jI3nvy/IDFeBPw/HDtzWj0iETdvWSPDMAQRUX1D0+ry8vJmKeWBnu6DTankwPn79+0ZWz6iZHxf78Ex6dTg5L7enn9hKVFeMfK7CxcuWmJZVgYAXDv1UG9vty0UcScAam5uPi5n9bgmQ+DrRIJZ8n9aliU1zb9szOgx32Tm7v5Y7319vT1XJ+KxMZl0Ymz5iJLxmXRiTCLeN7Uv1vuYPxCcEgwF/3vBgsXnNzc3s2EYAgD6+voYgC9jZw709fZcNzjQf+1Af991sYH+a+ODA9f29fbMFlz8vDcycXack/JWRORI25EEIfM+I6H6flBeUXFHKp1s7+vt+XIqOTA2k4qfVVFeMo7gjE7EY1N6+robMpnMxqJQ0Vyf4tvkq6iooKwXouMa9TXT5pPf9wsQTXZt12YpQZQ1WnakzY5MDHlJOeimMwmf4s7ZNVjys1SKu+MJ9OjCnfZPN2N0bQQunyKrUE+LxxCpkvkwfuWydBWww658du8Lm+85Vrl3f90eA/AKgFfOCk/9Lwnfs0JTH5gwa+qG3ZHIdpimWDN5MtXW1rr19U1NFRWjvhLr62vr7em6afXq1V1H3C4OoANAx7x5C58C0fMjysubFjYuji5/aMlTK1as2NHQsLitqLh4Rl1jYw0RveJ55WMZOFmW5TQ0NBQJolsGBmIJKdNPA4CU/J3ug/t/ta/zvVWRSCR5jLIxAFsBbF24cNE7FSNH3Wtner5HRNcbhgEA8Pl8DECwlIllyx785QnpBdHJOR4+vEx7a6td19AwZ0RZ+Y19vT0b3nj9t5+PRqOpI0r1A3jDu5Y1Nt51HTPOWr18+QFvjHkoox5/zZWzWVMflq7rAhCKpmjScV9miadg8xawsxfkTwIAKemj78NBsEygRNPEr3sruy7xTbiWheoTmhApnyDg5VPmyqdl2Ce4r4ZwWEUgoGDtWvsoXmuahC1btL1r126oCl/+L3pJ0YNu3LkbwIKa559Xai3LNoyGIkVV/jUeHxyMD/bdsnr16i7DMPXqaji55d0LeAiAalnW23feWX+brvs2KkT/OxwOP5vlp7JV1/UZGpR5AF4xDAORSORYgZOSVSWUvyktHTGyt7f7ieXLl3etWbNGqa2t3Qxgc04t6ejoYG+p/oAShMNKZWUjL19ee9+iRfd8Rffpf3v77fUTH3102btHrpQ1NTXaxIkTZVdXF1VWVh56lkh1NePUlYmjV1ZSP08ETqfT90Wj0VRTU5NvyZIlmfx2e/0nmpubXSL67xNOuEhEjp49JSQlWolZehNgUNrOor3r2p44ZUe56PZaJeCrZ2ZATf0CePlmGIY4KWXodKnIsPxHNOogmXS9RAQfdlmWxNq1GZgQI+B7zEmmBiRobk1NjTZ37lwXACoqxGeLi0sr0+nUT1etWrXbNE01ErEyeVIVA2DLsqRlWRnTNNWHH162OR4f3OL3B6ZcdNFF5wGA42R+3tcX6xGK+nd1dXWltbW17hDUz7uvmO+6Dhx2HgFAkUgEpmkKT/4jy7KcSCTiet7s0BWNRp3q6m2UpY/y6aKiIgoE1L/2uuOw+trb291IJOJGo1E3EokcutDc/KHKXExU6jgOAOoKh0113759zpHt9vrPISI2DEM5rvqTlWlZdYu/KnTtHCldSUQup9M37F3X9gRMUyAcVj1KKYZz1dTVaQCgk92mCC5RIEtIEdOqDUP3jJrOJMMetnbZEY0Ogvl3QlXGvu/3V33L81hCFdWKojBBtA3J9Y7FkAS1+f1+JlInAUBra2tMus4PSktLyxRFvz7nnY+UuSzLknfc0TDJH/Bf098fe7v3wIE2gBGJRNzc4OcCTNM0VU99IS/IJU8mU7MTgHcCBGac7cVJHw8kv6X7fCSE+Fw0ajnV1dWKYRjKUP2ZnWC1Q3vIaFR6fvtWdiUrqqay4z689zdb12POHB8sSyIadTyDlMO52quqXAAQSX7VTWWSUkoGYQyNCIw/tLqfIVRk+OgwCIgQA/uFokBQugzAH7Oe1ikBmFzXHiQiNk1zWJNFSjdBRCSE8B8aX8mPptPpJhJKHYDVwFEykgAg/X7tK6FQkZJKJx+ORCKuaTarlgUnTzFxj8XPvaXd9S4sWNDQAzCYWf8Y3QaJJvnjwYGB5kAw+K0FDQ2/tyzr53ntpbwJPpzkDAGQ514zdXQG+DSzpOwaJ56ECYGOYueU2unRSv3Vt/bbV16yj4jOJU3V2LUnAHgHHR2fQMPODYHknFWKPGPhnMR4spJkfnnTNFXLsl5tWHTXK4FAYHp9ff1FlmVtz9OZYVmWaxiGDqLbB/r7M5kU/ziPnuQ8unvbbWF/SclnZgP0OQAXM7gSIBVAEsABItrluM7v2JXjpJTgfDL7p86TNRva0qVL/7BwYcOdwVDxE6XFI362aPE9zzLwODvpF1taWvblS5/5+v8QSohAJOI6rno++ZQQM4Nd92AgYW+HBQlE6JTHn5naiewLr7ykC0TnQghIiNEAEK7uougn1LA/UuzatUsF4ECiNRgMtiaSya8B+Kecl/aCQ1leWRkuKSk5J9YXe3rlygf3GIaheAavWJbl1tXV3xQMhu4PFhWdL10Xg4ODDFAPAIcZASHoUp/Pj2JdQzqdQSaTAfDxHcToQpf0JuST8+cv3BUKhe4NBUM3qKp6Q39/Py9quuc1Am+Rkn5j2+4my7L+mL8yHX3DruyyJDBWZPcGQALv79y6tR+nu++kuTknEqbIo9QklGD2nzMAnJxp/0VsM/X5fG7Wgzs/jcX64gqJ2wzDCHjeijyFhAWU+UQEKd2HvQE+NMgLFzbeVlpW/hQJcX5/LPbAQH//NJaZURWv/3ZMRXnJ2Hd2bq9MxGMV8cHe6lhf35xUMr5K0zSwpxp8XLAsSxqGoaxcuXzjAw/854yB/oHLB/pj/wfAy0Q0OVRUvKCsvOwHgaC+e/Hiv3+6rq7xiiwFO04KXspQbh0iov7TzWIfoXGqh2WtAAAbzhi574xCVVUVe165u6Gh6Scjyituc11nFoDn6+rq1NbWVvu22xrG6Jr+hVgs9l539/51AGjbtm0ciUTk/Pnzx+m+wEOu6ySSicT1y5cvfeGIgAoA0t7VA2B7XV29rijKPAHIj/v5c4ZqWc3c0kJbAGwB8K91dXUjWcoLmHi6IOWmUCh0o6qpN9YtbFxkWdZD+VTtCOOzD/nmbJrxw5iB0nO0I8ESYAXMbt+fPPP4ScMHujWtdF0XpIg6AFxVVUUAUFSkf6mkpMQP5lWRSCTjBVUCAHQ9dFNpaUkonkg8tHz50heampp8ecoC5SsjpmnqnjpSelpBx0nGFcPx3EBWzjNNU2Vmam1tPbh06ffbHnrwgW8/uOR7U3v7YzdJKWPFRcVL6+oapua8/aGb5PR2hbr5A8suzQWVp9w474DKBfNuHgPCeJYMdhzAdXcDQBQz5J+VYeeCPyEEnVwxYj6C73mckQ4c6Hyxv7//LV3T58yb1zDB078FwHWDg4Myxfbq/KDR66VLHcdhAfzMNE2xb9++Y+rY3t/S+597Sg+d5ZoAKE1CQNN09cP23jnNOidRetKluuKhJU8nE/G7/f4ANE29Azi0xSCL6movwsf77EpmZoBpzMRZNSWnQ0fCyNIexa9PEz5fEADYdbsE2W/nqyafeMPOPYVCYj9ADEUdexIejBVFrZKuS7bt9ABAR0dHTh3JBkXMK4uLi1W/X70FAHV19VweKiqakk6nXnikpWVnbgnu6Jica0pQSklSctI6hU7OoaKiQmblQBKGYdCxB3mDNya0Wwn4WPcrY8FMpyJ55QLBobahEhHnDB2ANAxDUVX6ZTw+CJCYnJ1neXtrvGdXpbobzN0AO1CoJC3VCaeoN1PYDKtRrw6pin9gV7LQNAbz+o6WyKCxxlBOJSg9ozm2lGhPp1MkmK8nou/U1dXRUNE3M1NtbS2Hw2GVQNfF4/F0JpPYBgB5qW8JAJlM4scDAwP/RoqYD+DfhBC36LoOlrI1X9POZRHB+IOm6SwETwawtbq6Wsnp1UNTCUmHO+Jm5fHHH081Nt3dJUhMHDlyZIlpmjGruZlxmCKYVQCI3Y1C0262gb8F0dZq01A6jl8nMR09+XPqhnfggoeS8jq8ieM4ju7zCwY47bU7v78ZJsRuK9o37nPT92oB30giAZngG5jxBn19lx42zWFp2dGODkYk4katqAOLcOHir7cIv3+qm85kFEE62c5D2Qc4Nds5Yw07HA6rlZUj3jxwoO+V4pKS6XV19Te1ti77ae5US84L55bL5uZmGYlE3AX1jf9QVlZ2dk93z48effTRA4ZhKDla8IFCsHJPfePiX5QUl9wwf0HjF0nQjX19sZ6Bgb6f5zTt/Dpccv8rk0l/U9V93zAM40eWZSWHaofXpw6QPf6Vo1O7vM+Z+cWS0pILuw6mr7Es66mmnh5fuWkeMtjnOzuzKfmE/YzdP/Bdxa83VN9qPNJhRf5YU1enFVW9zZUdlRwBYADoqq6mQHmPkq0TGU8n4yw3jcqGhqY5UjItX770F3kGTke2u7Ozk1pbW+26usabgqEQpdLpl/IneT4hBixkJH/nQC+mAA6l48rb2RMvj6dORpQL33ab/0AJZkhV+WdF169yUumUGgz43f6Bn7y1/Acbj7NZ7ZNj2EceBaqsrBSWZTkLFy76hm3bvwmFip6sr1+kWZb146FuUd/Y1BQMhL47ODjYD9j/yzvGddh9PeMjdt2Vruve4NO0Fr8/MCaeGFy6evXquJfMcQ5XE6y2+vrFPxk5atSXpeTn581b2GBZ1ttDtMMBAEURFczssrf7saSnhwHAYefhTMa+Pej3f3vBggWvP/jggzuORR8iq370/oUNt96rjSr/d7tCPnf+gtqvta9ofe0wb5xXZ7Vh6MxyLEtmgqsBwJyeORoJ5bERZSWjG5vuXpJOOt9fuXLpH4YagwULGr8YDIXuHejvz0BmVh0VawDgZovJAvbfdfC5LXvUs1yW7Lg08blrpp3308Hzv+JTEWCWzDwU3xaAAr8gMWE/0aeFpk4UANxUOqUG/H6ZSL0lUqkFME0ROQ1d/JQN27Zt0n3a0ZQgmzmUJxtIcFY2kvC4dARwDcNQli9funH+gobbi4KhR8pGlP+oafE3mqQrn5HS2e66MqWqSpEQyhQQ1ZaWll0cjw/2JdLxL7e2tOwcNWrUUXJVzhsnk4O/VlR1t677J9iZjGTXXnWkB/aWYgYgdu7suUNRuovLykZcpwixfVHT3T92pVzPrrs7I9nxKcJPpIwTgj5FQkxXFOUSgMCU9aLl5eW5SfJifX3Td8srRv6jlPxqY+Ndj0rwbwWUpKoqpZmMvX/ZsgeeCZthNWo9ef+Fi249WxtRVg9F+d2Fi+etgXR/DZd3S9d1SVNCQhHnMtFnJTBDCfjHsm2DJScAoHhfsWOPkLfE44NLRpSVL+4XscWLFt/zHLvyBSndHa4rU4oi/EIoF5AQ14dCoRmZjI1kIn5ra+uynceS+4iyZxKbGxX+63PFN0eX+0b6FcLMZOzgDxP6dSUVgSsziRRw3B23XmjvupCOA1IUKMGAXyZTL6nxXuONR57uOd7Bio/UsAOBgCNZEKR7mAFrpCVBJMAnpwoQUZqIhKqIdD4/NAxDWbmi5bE777xzm3TlvyqK8oWSkpIrmbP6vRAEZiAeH7T7+2NPDPT33PfYY4/tyGULj9WrnldONTbetaqoqMjq7j6wcfny5a/m0ubHUmaQ3bf8+cbGuxsUTWkMBkM3a5p+M7MEc3bvBRHBcWwkEom4dN1fxPr7ntJViiC7I9D1AlhhWdY36+ub9vn8vm8WFRUvEkIcOkHTtb/zXQDPzMAMGTVniLcsq+GCxls3CV3/RyXoqxW6XotczoeyIQfbNpxUcr9MpZ9gO7N69Jvvrd+eTTxJAOvmzp172YRzJ92uKMp8v+a/3uf3X8/MyJ1OIgISiQRSyeTawcHB+x55ZEXbUBo2AN7QHFatlujg0/dP+Z9S8koioNgv64s5vdR1/VceLgEMmYkBCQGWMgPX3c5x58lg2+tL2tvb7dM16tPOFs2rq7sCjuhZtWr522AmZI1AVIWnTiOp735/48b3cOJUKwHg8bOmjXVsmtg5Y9ZmHOOkeY5rNTQ0TCDN/yly+RwmGRJQ+pndd6W0X21padmXZzzyRHUaxj2BsWPF1L6+5FuPP96y78hzm8cqk1tPFy265xIWmAzmscxSJxYDQqBTSrxr24l3WltbY8fTqImIb7nllpKykSMvJRfnSOlqmqYPplKZjhUrlr52qL68Qb6g8euXkEoXC8ZYluyTxAPEtFdj7Ogf/MOO3Y8fdYjgqPT4woV3XaAo4mIoPI4lQgI0SMS7mZ3Xly7N0pThcFsGqNYwRO1n3vpq0C9GuxlHrusd+ZPnYmff6FOFnj17cAwogCByCEofgd+H6+7saFm9M69zcnb0lwFvP7Q4kbT1Eb8Xb9gn1fP3bw/V1pOR7Ib1vTWGMsSJccoFu6fbxx+ZWGCGVXyIb8Y6rRsNKSFljw6d7HslaDinJUzTFJMnT6Zt27ZRnlTFJzx4OqShGmIYZfNPewuPzhCy7zgR1dXVEgA6Ozupt7dXehTgSFmejvzdNE3R0dFBOVUCAKqqqtz8k+2H1W+alNW5Z2DQ+35R1dscxQx5RBKDj1YzsvcIh8PKjBkzDn2Y916T3LZVkZd0OiHWZw0SADCzOeqGm81hTtgNqOyoZO/EEKPwNqyPd9X4EB3ER+kZ/+LfoVh4KeIw+mfatGlFQojPqqoKKWUiHo+/0t7e7gKQV1999SWu644BAF3X312/fv07AHDFFVdcqCiK2LRpU0dNTU0pgKr29va3AND06dMvURSlnIhsZm6PRqOpadOmjXUcR2zdunWPYRh6Z2fnOZs2bfp9TU2Npuv6BS+++OKbOS88derUc3w+30VSyhAz72lra9sKQF511VVVRHSxlFIS0cDGjRtfBsDhcNjPzLMVRYnbtk0+n+9369at654yZUooEAicvWXLlu05Xn3VVVddbdv2my+99FIPPsHvFSy8HfXEhs2Kokxj5h0bNmxYR0S2z+ebCEDOnDlzAjNXtbW1/bq3tzfqum715ZdfXu6VLRZCzKqpqdECgYCuqupEAJg+ffpIAGdHo9ENqVRqv23bZ3kB5WhVVccAQFdXl64oytkAoGmaCmBSHsWgLVu27M5kMq9LKffPmjVrq0cLdSK6zHGclzZt2rSOmbWrr776YgCQUo4AcHD9+vUvKIrymuM4lwGAECIohJjoKVDy8ssvDwCo1nV9wifd8RUM+/iQhmHoALitre2PACgajb6yefPmHZ6WP0bTtG0AuKOjIyOlfEfX9bM8o0lIKduCweBlmUwmTUSZrH6e7COi/unTp4eDwWBy8+bN7+RSA8zsep6fhRAZIPvKhlzZfA5NRLaiKGmPF8vu7u5RAA5s3rx5IJsgUl5j5lFeW2wiGjdz5szJzHyZ67rve5NG5urxJvBf2bb9nOu6vnA4rOIM2HJbMOyPCO+++y7zB3uOGYCYNWtWce7/tm0f6kNFUYSiKNLzwAGfz7dL1/WDuq5/Vko5CABFRUXKmDFj2lzX3Z7JZC6cPn36FABwHEdlZi9rqTiO4xwKylzX5bz62fPCh3nTVCrFMu9YnW3bh6RL13WJmR0pZRqA5v08CqqqVodCobGapp0nhDjrk+y1C4Z9gv5pb2+3iSgzffr0v5ozZ45v+vTpVyUSiTEASEr5nhDiUzU1NcFZs2aVSinPi8fj73mGTclksmzdunW/BzBeVbM74DKZTMnevXuvu/baaw9KKfcIIUIA4Pf7u3VdHzdnzhzfwMDApJz3TqfTJIQomj17digcDhflpD/HcQQza7mgVtO0LiFERTgcHhMOh/2apk1VFOV9IPtiI13XO6PR6E5N09qEEGNyk1JK6fMo0kQp5W5N017XNO1Xtm1PKhj2nzEVAUChUKiNiEbG4/ErFUXp3rx589sAaPPmze+7rtsRCoWmZjKZSwFs3Zo9/wdd1//gOM4BzwifZebXAODFF1/sUlV1x4YNG65RFKXi4MGD7QBoYzaZtSsej19JRGWKomwBQC+99FJaVdXdzHwRgAu7uroCXttitm3vBADLshCNRh0i+o3ruhe4rnslgH3r169/2zPgvnQ6vRsA9fX1JXVd3wkApaWlA0KI171VIiGEeH3t2rXpX/3qV11E9PtjSIYFFFSlAgr45KxudIxVjo64jvwcx/mfGGYd4hj3wBB/H6+dx/udjvOdAgoooIACCiiggAIKKKCAAgr488P/B/+gUIgQASO0AAAAAElFTkSuQmCC" alt="Inovatus" style="width:160px;height:auto;margin-bottom:20px;">
+    <span>Gestão de Férias</span>
+    <span style="font-size:9px;opacity:0.3;margin-top:2px;">vB · 07/07/2026 16:41</span>
+  </div>
+  <div class="sidebar-user">
+    <strong id="user-name">—</strong>
+    <span id="user-email">—</span>
+  </div>
+  <nav class="sidebar-nav">
+    <button class="nav-item active" onclick="navigate('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </button>
+    <button class="nav-item" onclick="navigate('registrar')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      Registrar Férias
+    </button>
+    <button class="nav-item" onclick="navigate('historico')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+      Histórico
+    </button>
+    <button class="nav-item" onclick="navigate('equipe')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Membros da Equipe
+    </button>
+    <button class="nav-item" onclick="navigate('calendario')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Calendário
+    </button>
+    <button class="nav-item" onclick="navigate('gerenciar')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/><line x1="19" y1="8" x2="23" y2="8"/><line x1="21" y1="6" x2="21" y2="10"/></svg>
+      Gerenciar Equipe
+    </button>
+  </nav>
+  <button class="btn-logout" onclick="fazerLogout()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    Sair
+  </button>
+  <div class="sidebar-year">
+    <button class="year-btn" onclick="changeYear(-1)">&#8249;</button>
+    <span class="year-label" id="yearLabel">2026</span>
+    <button class="year-btn" onclick="changeYear(1)">&#8250;</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main" id="main-content" style="display:none">
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="page-header">
+      <div>
+        <div class="page-title" id="dash-title">Visão Geral</div>
+        <div class="page-subtitle" id="dash-subtitle"></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="exportExcel()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Exportar Excel
+      </button>
+    </div>
+    <div id="alerts-container"></div>
+    <div class="saldo-list" id="saldo-cards"></div>
+    <div class="gantt-wrap">
+      <div class="gantt-header">
+        <span class="gantt-title">Calendário de Férias <span id="gantt-year-label"></span></span>
+        <div style="display:flex;gap:12px;font-size:11px;color:var(--ink3);align-items:center;">
+          <div style="display:flex;align-items:center;gap:5px;"><div style="width:12px;height:12px;border-radius:3px;background:var(--accent);"></div> Férias</div>
+          <div style="display:flex;align-items:center;gap:5px;"><div style="width:2px;height:14px;background:var(--accent);"></div> Hoje</div>
+        </div>
+      </div>
+      <div class="gantt-inner"><div id="gantt-container"></div></div>
+    </div>
+  </div>
+
+  <!-- REGISTRAR -->
+  <div class="page" id="page-registrar">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Registrar Férias</div>
+        <div class="page-subtitle">Adicione um novo período de férias</div>
+      </div>
+    </div>
+    <div class="form-card">
+      <div class="form-group">
+        <label>Membro da Equipe</label>
+        <select id="form-funcionario" onchange="onFuncionarioChange()">
+          <option value="">Selecione...</option>
+        </select>
+      </div>
+      <div id="form-info-funcionario"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Data de Início</label>
+          <input type="date" id="form-inicio" onchange="calcularDias()">
+        </div>
+        <div class="form-group">
+          <label>Data de Fim</label>
+          <input type="date" id="form-fim" onchange="calcularDias()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Observação (opcional)</label>
+        <input type="text" id="form-obs" placeholder="Ex: Viagem, férias em família...">
+      </div>
+      <div class="form-info" id="form-calculo" style="display:none"></div>
+      <div style="display:flex;gap:10px;margin-top:8px;">
+        <button class="btn btn-primary" onclick="registrarFerias()">Registrar Férias</button>
+        <button class="btn btn-ghost" onclick="limparForm()">Limpar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTÓRICO -->
+  <div class="page" id="page-historico">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Histórico</div>
+        <div class="page-subtitle">Todos os períodos registrados</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="exportExcel()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Exportar Excel
+      </button>
+    </div>
+    <div class="tabs" id="historico-tabs"></div>
+    <div id="historico-list"></div>
+  </div>
+
+  <!-- EQUIPE -->
+  <div class="page" id="page-equipe">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Membros da Equipe</div>
+        <div class="page-subtitle">Cadastro e regras de cada membro</div>
+      </div>
+    </div>
+    <div class="grid-3" id="func-cards"></div>
+  </div>
+
+  <!-- GERENCIAR EQUIPE -->
+  <div class="page" id="page-gerenciar">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Gerenciar Equipe</div>
+        <div class="page-subtitle">Adicione, edite ou remova membros da equipe</div>
+      </div>
+      <button class="btn btn-primary" onclick="abrirModalMembro()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        Novo Membro
+      </button>
+    </div>
+    <div id="gerenciar-list"></div>
+  </div>
+
+  <!-- CALENDÁRIO -->
+  <div class="page" id="page-calendario">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Calendário</div>
+        <div class="page-subtitle" id="cal-subtitle">Feriados e dias úteis do ano</div>
+      </div>
+    </div>
+    <div id="calendario-container" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;"></div>
+  </div>
+
+</main>
+
+<!-- MODAL MEMBRO -->
+<div class="modal-overlay" id="modal-membro">
+  <div class="modal" style="width:520px;max-width:95vw;">
+    <h2 id="modal-membro-title">Novo Membro</h2>
+    <p id="modal-membro-desc">Preencha os dados do novo membro da equipe.</p>
+    <div class="form-group">
+      <label>Nome</label>
+      <input type="text" id="mb-nome" placeholder="Nome completo">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Tipo</label>
+        <select id="mb-tipo" class="form-select-styled" onchange="onTipoMembroChange()">
+          <option value="clt">CLT</option>
+          <option value="pj">PJ</option>
+          <option value="estagiario">Estagiário</option>
+          <option value="diretor">Diretor</option>
+          <option value="diretora">Diretora</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Cor</label>
+        <input type="color" id="mb-cor" value="#2D5C4E" style="width:100%;height:42px;padding:4px;border:1px solid var(--border);border-radius:8px;background:var(--bg);cursor:pointer;">
+      </div>
+    </div>
+    <div class="form-group" id="mb-admissao-group">
+      <label>Data de Admissão</label>
+      <input type="date" id="mb-admissao">
+    </div>
+    <div class="form-group" id="mb-dias-group" style="display:none">
+      <label>Dias por ano (PJ)</label>
+      <input type="number" id="mb-dias" value="22" min="1" max="365" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);outline:none;">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModalMembro()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-salvar-membro" onclick="salvarMembro()">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMAR REMOÇÃO MEMBRO -->
+<div class="modal-overlay" id="modal-remover-membro">
+  <div class="modal">
+    <h2>Remover Membro</h2>
+    <p id="modal-remover-membro-desc">Tem certeza? Os registros de férias deste membro serão mantidos no histórico.</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModalRemoverMembro()">Cancelar</button>
+      <button class="btn" style="background:var(--red);color:#fff;" onclick="confirmarRemoverMembro()">Remover</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR -->
+<div class="modal-overlay" id="modal-editar">
+  <div class="modal" style="width:520px;max-width:95vw;">
+    <h2>Editar Férias</h2>
+    <p>Altere os dados do período de férias.</p>
+    <div class="form-group">
+      <label>Membro da Equipe</label>
+      <input type="text" id="edit-nome" disabled style="opacity:0.6;cursor:not-allowed;">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div class="form-group">
+        <label>Data de Início</label>
+        <input type="date" id="edit-inicio" onchange="calcularDiasEdit()">
+      </div>
+      <div class="form-group">
+        <label>Data de Fim</label>
+        <input type="date" id="edit-fim" onchange="calcularDiasEdit()">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Observação</label>
+      <input type="text" id="edit-obs" placeholder="Opcional...">
+    </div>
+    <div class="form-info" id="edit-calculo" style="display:none;margin-bottom:16px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModalEditar()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEdicao()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DELETE -->
+<div class="modal-overlay" id="modal-delete">
+  <div class="modal">
+    <h2>Remover Férias</h2>
+    <p>Tem certeza que deseja remover este período? Esta ação não pode ser desfeita.</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn" style="background:var(--red);color:#fff;" onclick="confirmarDelete()">Remover</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== CONFIG =====================
+const CLIENT_ID = 'd86f175d-2548-4d9f-b33a-57cda630412a';
+const TENANT_ID = '254da802-695f-450f-bace-5187b3ed5459';
+const SCOPES = ['Files.ReadWrite.All', 'User.Read'];
+const EXCEL_SHARE_ID = 'u!aHR0cHM6Ly9pbm92YXR1c2NvbnN1bHRvcmlhLW15LnNoYXJlcG9pbnQuY29tLzp4Oi9nL3BlcnNvbmFsL2lub3ZhdHVzX2lub3ZhdHVzY29uc3VsdG9yaWFfb25taWNyb3NvZnRfY29tL0lRQ2lIWl9jQUhoeVJhRl8wd056TDdPUkFkd2h6TTNHcmcwX05yWDJOU21iNVhJP2U9dTVwYUFB';
+
+// ===================== DADOS DA EQUIPE =====================
+// MEMBROS carregados dinamicamente do Excel
+let MEMBROS = [
+  { id: 1, nome: 'Yiannis', tipo: 'diretor',  admissao: null,         cor: '#2D6A8A', diasAno: null },
+  { id: 2, nome: 'Helena',  tipo: 'diretora', admissao: null,         cor: '#7A4E8A', diasAno: null },
+  { id: 3, nome: 'Diogo',   tipo: 'pj',       admissao: '2024-10-01', cor: '#3A7D5A', diasAno: 22   },
+  { id: 4, nome: 'Ricardo', tipo: 'clt',      admissao: '2026-01-07', cor: '#C85A2A', diasAno: 30   },
+  { id: 5, nome: 'Alda',    tipo: 'clt',      admissao: '2025-04-08', cor: '#C4963A', diasAno: 30   },
+  { id: 6, nome: 'Denise',  tipo: 'clt',      admissao: '2025-10-01', cor: '#8A3A6A', diasAno: 30   },
+];
+
+const TIPO_LABEL = { clt: 'CLT', pj: 'PJ', diretor: 'Diretor', diretora: 'Diretora', estagiario: 'Estagiário' };
+const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+let currentYear = new Date().getFullYear();
+let ferias = [];
+let deleteTarget = null;
+let currentHistoricoTab = 'todos';
+let accessToken = null;
+let currentUser = null;
+let excelFileId = null;
+let excelDriveId = null;
+
+// ===================== MSAL (Microsoft Auth) — PKCE =====================
+// Funciona abrindo o arquivo diretamente pelo Explorer (file://)
+const REDIRECT_URI = 'https://inovatus-consultoria.github.io/ferias/ferias_final.html';
+
+function generateRandom(length) {
+  const array = new Uint8Array(length);
+  crypto.getRandomValues(array);
+  return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function base64urlEncode(buffer) {
+  return btoa(String.fromCharCode(...new Uint8Array(buffer)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+async function generatePKCE() {
+  const verifier = generateRandom(32);
+  const encoder = new TextEncoder();
+  const data = encoder.encode(verifier);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  const challenge = base64urlEncode(digest);
+  return { verifier, challenge };
+}
+
+async function fazerLogin() {
+  document.getElementById('login-status').textContent = 'Abrindo janela de login...';
+
+  const { verifier, challenge } = await generatePKCE();
+  sessionStorage.setItem('pkce_verifier', verifier);
+
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID,
+    response_type: 'code',
+    redirect_uri: REDIRECT_URI,
+    scope: SCOPES.join(' ') + ' offline_access',
+    response_mode: 'query',
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+    prompt: 'select_account'
+  });
+
+  const authUrl = `https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/authorize?${params}`;
+  const popup = window.open(authUrl, 'mslogin', 'width=500,height=650,menubar=no,toolbar=no');
+
+  let codeCapturado = false;
+  const poll = setInterval(async () => {
+    try {
+      if (!popup || popup.closed) {
+        clearInterval(poll);
+        if (!codeCapturado) {
+          document.getElementById('login-status').textContent = 'Login cancelado.';
+        }
+        return;
+      }
+      const url = popup.location.href;
+      if (!codeCapturado && url.includes('inovatus-consultoria.github.io') && url.includes('code=')) {
+        codeCapturado = true;
+        clearInterval(poll);
+        const urlParams = new URLSearchParams(url.includes('?') ? url.split('?')[1] : url.split('#')[1]);
+        const code = urlParams.get('code');
+        popup.close();
+        if (code) {
+          document.getElementById('login-status').textContent = 'Autenticando...';
+          await trocarCodePorToken(code);
+        } else {
+          document.getElementById('login-status').textContent = 'Erro: código não encontrado.';
+        }
+      } else if (!codeCapturado && url.includes('error=')) {
+        codeCapturado = true;
+        clearInterval(poll);
+        popup.close();
+        const urlParams = new URLSearchParams(url.split('?')[1] || '');
+        document.getElementById('login-status').textContent = 'Erro: ' + (urlParams.get('error_description') || 'falha no login.');
+      }
+    } catch(e) { /* cross-origin — popup ainda na página da Microsoft, aguardar */ }
+  }, 200);
+}
+
+async function trocarCodePorToken(code) {
+  const verifier = sessionStorage.getItem('pkce_verifier');
+  const body = new URLSearchParams({
+    client_id: CLIENT_ID,
+    grant_type: 'authorization_code',
+    code,
+    redirect_uri: REDIRECT_URI,
+    code_verifier: verifier,
+    scope: SCOPES.join(' ')
+  });
+
+  const res = await fetch(`https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString()
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error_description || 'Falha ao obter token');
+  }
+
+  const data = await res.json();
+  accessToken = data.access_token;
+  const expiresAt = Date.now() + (data.expires_in * 1000);
+  localStorage.setItem('inovatus_access_token', data.access_token);
+  localStorage.setItem('inovatus_expires_at', expiresAt);
+  if (data.refresh_token) localStorage.setItem('inovatus_refresh_token', data.refresh_token);
+  inicializarApp();
+}
+
+function fazerLogout() {
+  accessToken = null;
+  currentUser = null;
+  excelFileId = null;
+  ferias = [];
+  localStorage.removeItem('inovatus_access_token');
+  localStorage.removeItem('inovatus_expires_at');
+  localStorage.removeItem('inovatus_refresh_token');
+  document.getElementById('sidebar').style.display = 'none';
+  document.getElementById('main-content').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-status').textContent = '';
+}
+
+async function inicializarApp() {
+  showLoading('Autenticando...');
+  try {
+    // Buscar perfil do usuário
+    const me = await graphGet('/me');
+    currentUser = me;
+    document.getElementById('user-name').textContent = me.displayName || me.givenName || 'Usuário';
+    document.getElementById('user-email').textContent = me.mail || me.userPrincipalName || '';
+
+    showLoading('Buscando arquivo de dados...');
+    await buscarOuCriarExcel();
+
+    showLoading('Carregando férias...');
+    await carregarFerias();
+
+    // Mostrar app
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('sidebar').style.display = 'flex';
+    document.getElementById('main-content').style.display = 'block';
+    hideLoading();
+    renderDashboard();
+  } catch(e) {
+    hideLoading();
+    document.getElementById('login-status').textContent = 'Erro ao conectar: ' + e.message;
+    console.error(e);
+  }
+}
+
+// ===================== MICROSOFT GRAPH =====================
+async function graphGet(path) {
+  const res = await fetch(`https://graph.microsoft.com/v1.0${path}`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  if (!res.ok) throw new Error(`Graph GET ${path} falhou: ${res.status}`);
+  return res.json();
+}
+
+async function graphPost(path, body) {
+  const res = await fetch(`https://graph.microsoft.com/v1.0${path}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error(`Graph POST ${path} falhou: ${res.status}`);
+  return res.json();
+}
+
+async function graphPut(path, body, contentType) {
+  const res = await fetch(`https://graph.microsoft.com/v1.0${path}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': contentType || 'application/json' },
+    body: body
+  });
+  if (!res.ok) throw new Error(`Graph PUT ${path} falhou: ${res.status}`);
+  return res.json();
+}
+
+async function graphPatch(path, body) {
+  const res = await fetch(`https://graph.microsoft.com/v1.0${path}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error(`Graph PATCH ${path} falhou: ${res.status}`);
+  return res.json();
+}
+
+// ===================== EXCEL NO ONEDRIVE COMPARTILHADO =====================
+async function buscarOuCriarExcel() {
+  // Acessa o arquivo diretamente pelo share ID — mesmo arquivo para todos da equipe
+  const result = await graphGet(`/shares/${EXCEL_SHARE_ID}/driveItem`);
+  excelFileId = result.id;
+  excelDriveId = result.parentReference ? result.parentReference.driveId : null;
+}
+
+async function carregarFerias() {
+  try {
+    const path = excelDriveId
+      ? `https://graph.microsoft.com/v1.0/drives/${excelDriveId}/items/${excelFileId}/content`
+      : `https://graph.microsoft.com/v1.0/me/drive/items/${excelFileId}/content`;
+
+    const res = await fetch(path, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const arrayBuffer = await res.arrayBuffer();
+    const wb = XLSX.read(arrayBuffer, { type: 'array' });
+
+    // Carregar membros do Excel (se existir a aba)
+    const wsMembros = wb.Sheets['Membros'];
+    if (wsMembros) {
+      const rowsMembros = XLSX.utils.sheet_to_json(wsMembros);
+      if (rowsMembros.length > 0) {
+        MEMBROS = rowsMembros.map(r => ({
+          id: parseInt(r.id),
+          nome: r.nome,
+          tipo: r.tipo,
+          admissao: r.admissao || null,
+          cor: r.cor || '#2D5C4E',
+          diasAno: r.diasAno ? parseInt(r.diasAno) : null
+        }));
+      }
+    }
+
+    // Carregar férias
+    const ws = wb.Sheets['Ferias'];
+    if (!ws) { ferias = []; return; }
+    const rows = XLSX.utils.sheet_to_json(ws);
+    ferias = rows.map(r => ({
+      id: r.id,
+      funcId: parseInt(r.funcId),
+      inicio: String(r.inicio),
+      fim: String(r.fim),
+      dias: parseInt(r.dias),
+      obs: r.obs || '',
+      periodoAquisitivo: r.periodoAquisitivo ? parseInt(r.periodoAquisitivo) : null,
+      criadoEm: r.criadoEm
+    })).filter(r => r.funcId && r.inicio && r.fim);
+
+    // Migração: registros PJ antigos não tinham periodoAquisitivo (o saldo era
+    // calculado só pela data). Atribuímos o ano de início como período, preservando
+    // o comportamento histórico e permitindo que o novo cálculo por ano funcione.
+    ferias.forEach(f => {
+      if (f.periodoAquisitivo == null) {
+        const membro = getMembro(f.funcId);
+        if (membro && membro.tipo === 'pj') {
+          f.periodoAquisitivo = parseInt(f.inicio.split('-')[0]);
+        }
+      }
+    });
+  } catch(e) {
+    console.warn('Arquivo vazio ou sem dados ainda:', e.message);
+    ferias = [];
+  }
+}
+
+async function salvarFerias() {
+  showLoading('Salvando...');
+  try {
+    const wb = XLSX.utils.book_new();
+
+    // Aba Membros
+    const headersMembros = ['id','nome','tipo','admissao','cor','diasAno'];
+    const rowsMembros = [headersMembros, ...MEMBROS.map(m => [
+      m.id, m.nome, m.tipo, m.admissao||'', m.cor, m.diasAno||''
+    ])];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rowsMembros), 'Membros');
+
+    // Aba Férias
+    const headers = ['id','funcId','inicio','fim','dias','obs','periodoAquisitivo','criadoEm'];
+    const rows = [headers, ...ferias.map(f => [
+      f.id, f.funcId, f.inicio, f.fim, f.dias, f.obs || '',
+      f.periodoAquisitivo || '', f.criadoEm
+    ])];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    XLSX.utils.book_append_sheet(wb, ws, 'Ferias');
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+    const path = excelDriveId
+      ? `https://graph.microsoft.com/v1.0/drives/${excelDriveId}/items/${excelFileId}/content`
+      : `https://graph.microsoft.com/v1.0/me/drive/items/${excelFileId}/content`;
+
+    await fetch(path, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
+      body: blob
+    });
+  } finally {
+    hideLoading();
+  }
+}
+
+// ===================== LOADING =====================
+function showLoading(msg) {
+  document.getElementById('loading-text').textContent = msg || 'Carregando...';
+  document.getElementById('loading-overlay').classList.add('show');
+}
+function hideLoading() {
+  document.getElementById('loading-overlay').classList.remove('show');
+}
+
+// ===================== UTILS =====================
+function getMembro(id) { return MEMBROS.find(f => f.id === id); }
+
+function parseDate(str) {
+  const [y,m,d] = str.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+function formatDate(str) {
+  if (!str) return '';
+  return parseDate(str).toLocaleDateString('pt-BR');
+}
+function dateToStr(d) { return d.toISOString().split('T')[0]; }
+
+function diasCorridos(inicio, fim) {
+  return Math.round((parseDate(fim) - parseDate(inicio)) / 86400000) + 1;
+}
+// ===================== FERIADOS =====================
+function getPascoa(year) {
+  // Algoritmo de Butcher
+  const a = year % 19, b = Math.floor(year/100), c = year % 100;
+  const d = Math.floor(b/4), e = b % 4, f = Math.floor((b+8)/25);
+  const g = Math.floor((b-f+1)/3), h = (19*a+b-d-g+15) % 30;
+  const i = Math.floor(c/4), k = c % 4;
+  const l = (32+2*e+2*i-h-k) % 7;
+  const m = Math.floor((a+11*h+22*l)/451);
+  const month = Math.floor((h+l-7*m+114)/31);
+  const day = ((h+l-7*m+114) % 31) + 1;
+  return new Date(year, month-1, day);
+}
+
+function getFeriadosAno(year) {
+  const feriados = new Set();
+  const add = (m, d) => feriados.add(`${year}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`);
+
+  // Nacionais fixos
+  add(1,1);   // Confraternização Universal
+  add(4,21);  // Tiradentes
+  add(5,1);   // Dia do Trabalho
+  add(9,7);   // Independência
+  add(10,12); // Nossa Sra Aparecida
+  add(11,2);  // Finados
+  add(11,15); // Proclamação da República
+  add(11,20); // Consciência Negra (nacional desde 2024)
+  add(12,25); // Natal
+
+  // Nacionais móveis baseados na Páscoa
+  const pascoa = getPascoa(year);
+  const addOffset = (offset) => {
+    const d = new Date(pascoa);
+    d.setDate(d.getDate() + offset);
+    feriados.add(dateToStr(d));
+  };
+  addOffset(-48); // Carnaval (segunda)
+  addOffset(-47); // Carnaval (terça)
+  addOffset(-2);  // Sexta-feira Santa
+  addOffset(0);   // Páscoa
+  addOffset(60);  // Corpus Christi
+
+  // Estaduais RJ fixos
+  add(4,23);  // Dia de São Jorge
+  add(11,20); // já incluído acima
+
+  // Municipais Rio de Janeiro fixos
+  add(1,20);  // São Sebastião (padroeiro do Rio)
+  add(11,2);  // já incluído acima
+
+  return feriados;
+}
+
+const _feriadosCache = {};
+function isFeriado(date) {
+  const year = date.getFullYear();
+  if (!_feriadosCache[year]) _feriadosCache[year] = getFeriadosAno(year);
+  return _feriadosCache[year].has(dateToStr(date));
+}
+
+function diasUteis(inicio, fim) {
+  let count = 0;
+  const d = parseDate(inicio);
+  const end = parseDate(fim);
+  while (d <= end) {
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6 && !isFeriado(d)) count++;
+    d.setDate(d.getDate() + 1);
+  }
+  return count;
+}
+function calcDias(membro, inicio, fim) {
+  if (membro.tipo === 'clt' || membro.tipo === 'estagiario') return diasCorridos(inicio, fim);
+  return diasUteis(inicio, fim);
+}
+
+function getPeriodosAquisitivos(membro) {
+  if (!membro.admissao) return [];
+  const adm = parseDate(membro.admissao);
+  const periodos = [];
+  for (let i = 0; i < 10; i++) {
+    const inicio = new Date(adm); inicio.setFullYear(adm.getFullYear() + i);
+    const fim = new Date(inicio); fim.setFullYear(inicio.getFullYear() + 1); fim.setDate(fim.getDate() - 1);
+    const direitoEm = new Date(fim); direitoEm.setDate(direitoEm.getDate() + 1);
+    const vence = new Date(direitoEm); vence.setFullYear(direitoEm.getFullYear() + 2);
+    if (direitoEm.getFullYear() > currentYear + 3) break;
+    periodos.push({ inicio: dateToStr(inicio), fim: dateToStr(fim), direitoEm: dateToStr(direitoEm), vence: dateToStr(vence), numero: i + 1 });
+  }
+  return periodos;
+}
+
+// Períodos anuais de PJ (um por ano-calendário, a partir do ano seguinte à admissão).
+// Não têm data de vencimento: um saldo não utilizado permanece pendente até ser
+// debitado contra aquele ano específico (via periodoAquisitivo) em um registro futuro.
+function getPeriodosPJ(membro) {
+  if (!membro.admissao) return [];
+  const adm = parseDate(membro.admissao);
+  const anoInicio = adm.getFullYear() + 1;
+  const anoFim = currentYear + 1; // inclui o próximo ano p/ mensagens de "ainda não iniciado"
+  const periodos = [];
+  for (let ano = anoInicio; ano <= anoFim; ano++) {
+    periodos.push({ numero: ano, ano, inicio: `${ano}-01-01`, fim: `${ano}-12-31` });
+  }
+  return periodos;
+}
+
+// cutoffYear: ano de corte para calcular períodos disponíveis (mesmo padrão de getSaldoCLT)
+function getSaldoPJ(membro, cutoffYear) {
+  const periodos = getPeriodosPJ(membro);
+  const corte = cutoffYear || currentYear;
+  return periodos
+    .filter(p => p.ano <= corte)
+    .map(p => {
+      const usados = ferias
+        .filter(f => f.funcId === membro.id && f.periodoAquisitivo === p.ano)
+        .reduce((acc, f) => acc + calcDias(membro, f.inicio, f.fim), 0);
+      return { ...p, usados, disponivel: membro.diasAno - usados, total: membro.diasAno };
+    });
+}
+
+// cutoffYear: ano de corte para calcular períodos disponíveis
+// Se não informado, usa 31/12 do ano atual ou hoje (o que for menor)
+function getSaldoCLT(membro, cutoffYear) {
+  const periodos = getPeriodosAquisitivos(membro);
+  const hoje = new Date();
+  // Data de corte: 31/12 do ano selecionado, mas nunca no futuro além do necessário
+  const corte = cutoffYear
+    ? new Date(cutoffYear, 11, 31)  // 31/12 do ano selecionado
+    : hoje;
+
+  return periodos
+    .filter(p => parseDate(p.direitoEm) <= corte)
+    .map(p => {
+      const usados = ferias
+        .filter(f => f.funcId === membro.id && f.periodoAquisitivo === p.numero)
+        .reduce((acc, f) => acc + calcDias(membro, f.inicio, f.fim), 0);
+      return { ...p, usados, disponivel: Math.max(0, 30 - usados), total: 30 };
+    });
+}
+
+// Determina qual período sugerir para um novo registro CLT (sempre usa hoje como corte)
+function sugerirPeriodoCLT(membro) {
+  const saldos = getSaldoCLT(membro, null);
+  const comSaldo = saldos.filter(s => s.disponivel > 0);
+  if (comSaldo.length === 0) return null;
+  return comSaldo[0];
+}
+
+// Períodos semestrais de estagiário (15 dias corridos a cada 6 meses)
+function getPeriodosEstagiario(membro) {
+  if (!membro.admissao) return [];
+  const adm = parseDate(membro.admissao);
+  const hoje = new Date();
+  const periodos = [];
+  for (let i = 0; i < 20; i++) {
+    const inicio = new Date(adm);
+    inicio.setMonth(adm.getMonth() + i * 6);
+    const fim = new Date(inicio);
+    fim.setMonth(fim.getMonth() + 6);
+    fim.setDate(fim.getDate() - 1);
+    const direitoEm = new Date(fim);
+    direitoEm.setDate(direitoEm.getDate() + 1);
+    const vence = new Date(direitoEm);
+    vence.setFullYear(vence.getFullYear() + 1);
+    if (inicio.getFullYear() > hoje.getFullYear() + 2) break;
+    periodos.push({ inicio: dateToStr(inicio), fim: dateToStr(fim), direitoEm: dateToStr(direitoEm), vence: dateToStr(vence), numero: i + 1 });
+  }
+  return periodos;
+}
+
+function getSaldoEstagiario(membro, cutoffYear) {
+  const periodos = getPeriodosEstagiario(membro);
+  const hoje = new Date();
+  const corte = cutoffYear ? new Date(cutoffYear, 11, 31) : hoje;
+  return periodos
+    .filter(p => parseDate(p.direitoEm) <= corte)
+    .map(p => {
+      const usados = ferias.filter(f => f.funcId === membro.id && f.periodoAquisitivo === p.numero)
+        .reduce((acc, f) => acc + diasCorridos(f.inicio, f.fim), 0);
+      return { ...p, usados, disponivel: Math.max(0, 15 - usados), total: 15 };
+    });
+}
+
+// ===================== NAVIGATE =====================
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  ['dashboard','registrar','historico','equipe','calendario','gerenciar'].forEach((p,i) => {
+    if (p === page) document.querySelectorAll('.nav-item')[i].classList.add('active');
+  });
+  if (page === 'dashboard') renderDashboard();
+  if (page === 'registrar') renderForm();
+  if (page === 'historico') renderHistorico();
+  if (page === 'equipe') renderEquipe();
+  if (page === 'calendario') renderCalendario();
+  if (page === 'gerenciar') renderGerenciar();
+}
+
+function changeYear(delta) {
+  currentYear += delta;
+  document.getElementById('yearLabel').textContent = currentYear;
+  const page = document.querySelector('.page.active').id.replace('page-','');
+  navigate(page);
+}
+
+// ===================== DASHBOARD =====================
+function renderDashboard() {
+  document.getElementById('dash-subtitle').textContent = `Ano ${currentYear} — ${MEMBROS.length} membros da equipe`;
+  document.getElementById('gantt-year-label').textContent = currentYear;
+  renderAlerts();
+  renderSaldoCards();
+  renderGantt();
+}
+
+function renderAlerts() {
+  // Alertas movidos para dentro dos cards — limpar container
+  document.getElementById('alerts-container').innerHTML = '';
+}
+
+function getAlertaCard(s, hoje, tipo) {
+  if (s.disponivel <= 0) return '';
+  const vence = parseDate(s.vence);
+  const dias = Math.round((vence - hoje) / 86400000);
+  const venceu = dias < 0;
+  if (venceu && currentYear !== hoje.getFullYear()) return '';
+  if (venceu) {
+    return `<div style="margin-top:8px;font-size:11px;font-weight:600;color:var(--red);display:flex;align-items:center;gap:4px;">
+      ⚠️ Período vencido — ${s.disponivel} dias pendentes
+    </div>`;
+  }
+  // Alerta apenas se faltar menos de 180 dias
+  if (dias < 180) {
+    return `<div style="margin-top:8px;font-size:11px;font-weight:600;color:var(--amber);display:flex;align-items:center;gap:4px;">
+      ⏰ Vence em ${dias} dias
+    </div>`;
+  }
+  return '';
+}
+
+// Estado local de UI (não persiste): quais membros estão com o acúmulo expandido
+let saldoAcumuloAberto = {};
+
+function toggleSaldoAcumulo(id) {
+  saldoAcumuloAberto[id] = !saldoAcumuloAberto[id];
+  renderSaldoCards();
+}
+
+function corSaldo(disponivel) {
+  if (disponivel <= 0) return 'var(--red)';
+  if (disponivel <= 5) return 'var(--amber)';
+  return 'var(--green)';
+}
+
+function pctOf(s) {
+  return s.total > 0 ? Math.min(100, (s.usados / s.total) * 100) : 0;
+}
+
+function labelPeriodo(s, tipo) {
+  if (tipo === 'pj') return String(s.ano);
+  const ai = parseDate(s.inicio).getFullYear();
+  const af = parseDate(s.fim).getFullYear();
+  return ai === af ? String(ai) : `${ai}/${af}`;
+}
+
+function intervaloAnos(ativos, tipo) {
+  const primeiro = ativos[0], ultimo = ativos[ativos.length - 1];
+  if (tipo === 'pj') return `${primeiro.ano}–${ultimo.ano}`;
+  return `${parseDate(primeiro.inicio).getFullYear()}–${parseDate(ultimo.fim).getFullYear()}`;
+}
+
+function periodoLinha({ label, pct, corBar, usados, restantes, expandido }) {
+  return `<div class="saldo-period-line${expandido ? ' saldo-period-expandido' : ''}">
+    <div class="saldo-period-label">${label}</div>
+    <div class="saldo-period-bar"><div class="saldo-period-bar-fill" style="width:${Math.min(100,pct)}%;background:${corBar}"></div></div>
+    <div class="saldo-period-metric"><span class="saldo-period-num" style="color:var(--ink2)">${usados}</span><span class="saldo-period-metric-label">usados</span></div>
+    <div class="saldo-period-metric"><span class="saldo-period-num" style="color:var(--ink)">${restantes}</span><span class="saldo-period-metric-label">restantes</span></div>
+    <div class="saldo-period-chevron"></div>
+  </div>`;
+}
+
+// Constrói o(s) período(s) de um membro (CLT, PJ ou Estagiário) já no formato
+// consolidado (1 período ativo) ou com toggle de acúmulo (2+ períodos ativos
+// simultâneos — ex.: pessoa não usou o saldo do ano/período anterior).
+function renderPeriodosGenerico(m, saldos, tipo) {
+  if (!saldos || saldos.length === 0) {
+    // Em aquisição — ainda não existe nenhum período disponível
+    return { html: periodoLinha({ label: 'Ano atual', pct: 0, corBar: 'var(--surface2)', usados: 0, restantes: 0 }), multi: false };
+  }
+
+  const comSaldo = saldos.filter(s => s.disponivel > 0);
+  const ativos = comSaldo.length > 0 ? comSaldo : [saldos[saldos.length - 1]];
+
+  if (ativos.length === 1) {
+    const s = ativos[0];
+    return { html: periodoLinha({ label: 'Ano atual', pct: pctOf(s), corBar: corSaldo(s.disponivel), usados: s.usados, restantes: Math.max(0, s.disponivel) }), multi: false };
+  }
+
+  // 2+ períodos ativos simultâneos → linha consolidada (fechada por padrão) + toggle
+  const totalUsados = ativos.reduce((a, s) => a + s.usados, 0);
+  const totalTotal = ativos.reduce((a, s) => a + s.total, 0);
+  const totalRestante = ativos.reduce((a, s) => a + Math.max(0, s.disponivel), 0);
+  const pctCons = totalTotal > 0 ? Math.min(100, (totalUsados / totalTotal) * 100) : 0;
+  const corCons = corSaldo(totalRestante);
+  const aberto = !!saldoAcumuloAberto[m.id];
+  const chevron = aberto ? '▾' : '▸';
+
+  let html = `<div class="saldo-period-line saldo-period-consolidado" onclick="toggleSaldoAcumulo(${m.id})">
+    <div class="saldo-period-label">${intervaloAnos(ativos, tipo)}</div>
+    <div class="saldo-period-bar"><div class="saldo-period-bar-fill" style="width:${pctCons}%;background:${corCons}"></div></div>
+    <div class="saldo-period-metric"><span class="saldo-period-num" style="color:var(--ink2)">${totalUsados}</span><span class="saldo-period-metric-label">usados</span></div>
+    <div class="saldo-period-metric"><span class="saldo-period-num" style="color:var(--ink)">${totalRestante}</span><span class="saldo-period-metric-label">restantes</span></div>
+    <div class="saldo-period-chevron">${chevron}</div>
+  </div>`;
+
+  if (aberto) {
+    html += ativos.map(s => periodoLinha({
+      label: labelPeriodo(s, tipo),
+      pct: pctOf(s),
+      corBar: corSaldo(s.disponivel),
+      usados: s.usados,
+      restantes: Math.max(0, s.disponivel),
+      expandido: true
+    })).join('');
+  }
+
+  return { html, multi: true };
+}
+
+function rowMembro(m) {
+  let periodosHTML, multiPeriodo;
+
+  if (m.tipo === 'diretor' || m.tipo === 'diretora') {
+    const total = ferias.filter(x => x.funcId === m.id && x.inicio.startsWith(currentYear + '')).reduce((a, x) => a + x.dias, 0);
+    periodosHTML = periodoLinha({ label: 'Ano atual', pct: 20, corBar: '#8AA09A', usados: total, restantes: '—' });
+    multiPeriodo = false;
+  } else if (m.tipo === 'pj') {
+    ({ html: periodosHTML, multi: multiPeriodo } = renderPeriodosGenerico(m, getSaldoPJ(m, currentYear), 'pj'));
+  } else if (m.tipo === 'estagiario') {
+    ({ html: periodosHTML, multi: multiPeriodo } = renderPeriodosGenerico(m, getSaldoEstagiario(m, currentYear), 'estagiario'));
+  } else {
+    ({ html: periodosHTML, multi: multiPeriodo } = renderPeriodosGenerico(m, getSaldoCLT(m, currentYear), 'clt'));
+  }
+
+  return `<div class="saldo-row">
+    <div class="saldo-row-bar" style="background:${m.cor}"></div>
+    <div class="saldo-row-info">
+      <div class="saldo-row-name">${m.nome}</div>
+      <div class="saldo-row-type">${TIPO_LABEL[m.tipo]}</div>
+    </div>
+    <div class="saldo-row-periods">${periodosHTML}</div>
+  </div>`;
+}
+
+function renderSaldoCards() {
+  const container = document.getElementById('saldo-cards');
+  container.innerHTML = MEMBROS.map(m => rowMembro(m)).join('');
+}
+
+
+function renderGantt() {
+  const year = currentYear;
+  const isLeap = (year%4===0&&year%100!==0)||year%400===0;
+  const monthDays = [31,isLeap?29:28,31,30,31,30,31,31,30,31,30,31];
+  const hoje = new Date();
+
+  let headerHTML = `<thead><tr><th class="name-col">Membro</th>`;
+  monthDays.forEach((d,i) => { headerHTML += `<th colspan="${d}">${MESES[i]}</th>`; });
+  headerHTML += `</tr></thead>`;
+
+  let bodyHTML = '<tbody>';
+  MEMBROS.forEach(m => {
+    const feriasDoAno = ferias.filter(x => {
+      const ini = parseDate(x.inicio); const fim = parseDate(x.fim);
+      return x.funcId === m.id && (ini.getFullYear()===year||fim.getFullYear()===year);
+    });
+
+    bodyHTML += `<tr class="gantt-row"><td class="name-cell">
+      <div class="person-label">${m.nome}</div>
+      <div class="person-label-sub">${TIPO_LABEL[m.tipo]}</div>
+    </td>`;
+
+    for (let mo=0; mo<12; mo++) {
+      for (let d=1; d<=monthDays[mo]; d++) {
+        const thisDate = new Date(year,mo,d);
+        const thisStr = dateToStr(thisDate);
+        const isToday = thisDate.toDateString()===hoje.toDateString();
+        const inF = feriasDoAno.find(x=>thisStr>=x.inicio&&thisStr<=x.fim);
+
+        let bg = '';
+        if (inF) {
+          const nextDate = new Date(thisDate); nextDate.setDate(nextDate.getDate()+1);
+          const nextStr = dateToStr(nextDate);
+          const isStart = thisStr===inF.inicio;
+          const isEnd = nextStr>inF.fim;
+          const br = isStart&&isEnd?'4px':isStart?'4px 0 0 4px':isEnd?'0 4px 4px 0':'0';
+          bg = `background:${m.cor};border-radius:${br};opacity:0.85;`;
+        }
+
+        bodyHTML += `<td style="padding:2px 0;${isToday?'background:rgba(200,90,42,0.07);':''}" title="${inF?m.nome+': '+formatDate(inF.inicio)+' → '+formatDate(inF.fim):''}">
+          <div style="height:26px;${bg}${isToday?'outline:2px solid var(--accent);outline-offset:-1px;':''}"></div>
+        </td>`;
+      }
+    }
+    bodyHTML += '</tr>';
+  });
+  bodyHTML += '</tbody>';
+  document.getElementById('gantt-container').innerHTML = `<table class="gantt-table">${headerHTML}${bodyHTML}</table>`;
+}
+
+// ===================== FORM =====================
+function renderForm() {
+  const sel = document.getElementById('form-funcionario');
+  sel.innerHTML = '<option value="">Selecione...</option>';
+  MEMBROS.forEach(m => {
+    sel.innerHTML += `<option value="${m.id}">${m.nome} — ${TIPO_LABEL[m.tipo]}</option>`;
+  });
+  document.getElementById('form-info-funcionario').innerHTML = '';
+  document.getElementById('form-calculo').style.display = 'none';
+}
+
+function onFuncionarioChange() {
+  const id = parseInt(document.getElementById('form-funcionario').value);
+  const container = document.getElementById('form-info-funcionario');
+  if (!id) { container.innerHTML=''; return; }
+  const m = getMembro(id);
+  const hoje = new Date();
+
+  if (m.tipo==='diretor'||m.tipo==='diretora') {
+    const total = ferias.filter(x=>x.funcId===m.id&&x.inicio.startsWith(currentYear+'')).reduce((a,x)=>a+x.dias,0);
+    container.innerHTML = `<div class="form-info">${TIPO_LABEL[m.tipo]} — ${total} dias registrados em ${currentYear}.</div>`;
+  } else if (m.tipo==='estagiario') {
+    const inicioValEst = document.getElementById('form-inicio').value;
+    const anoCorteEst = inicioValEst ? parseInt(inicioValEst.split('-')[0]) : new Date().getFullYear();
+    const saldos = getSaldoEstagiario(m, anoCorteEst);
+    const periodos = getPeriodosEstagiario(m);
+    const corteFormEst = new Date(anoCorteEst, 11, 31);
+    const proximo = periodos.find(p=>parseDate(p.direitoEm)>corteFormEst);
+    if (saldos.length===0) {
+      const dias = proximo?Math.ceil((parseDate(proximo.direitoEm)-hoje)/86400000):'?';
+      container.innerHTML = `<div class="form-info">Estagiário — Nenhum período disponível em ${anoCorteEst}. Próximo período em ${proximo?formatDate(proximo.direitoEm):'?'} (~${dias} dias).</div>`;
+    } else {
+      const comSaldo = saldos.filter(s=>s.disponivel>0);
+      if (comSaldo.length===0) {
+        container.innerHTML = `<div class="form-info">Estagiário — Todos os períodos de ${anoCorteEst} já foram utilizados.</div>`;
+      } else {
+        const linhas = comSaldo.map((s,i)=>`
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:6px;">
+            <input type="radio" name="periodo-est" value="${s.numero}"
+              ${i===0?'checked':''}
+              style="accent-color:var(--accent);">
+            <span>${s.numero}º semestre (${formatDate(s.inicio)} – ${formatDate(s.fim)})
+              · <strong>${s.disponivel} dias disponíveis</strong>
+              · vence ${formatDate(s.vence)}</span>
+          </label>`).join('');
+        container.innerHTML = `<div class="form-info">
+          <div style="font-weight:600;margin-bottom:4px;">Selecione o semestre:</div>
+          ${linhas}
+          <div style="font-size:11px;color:var(--ink3);margin-top:8px;">Períodos baseados em ${anoCorteEst} — ajuste ao selecionar a data de início.</div>
+        </div>`;
+      }
+    }
+  } else if (m.tipo==='pj') {
+    const inicioValPJ = document.getElementById('form-inicio').value;
+    const anoCortePJ = inicioValPJ ? parseInt(inicioValPJ.split('-')[0]) : new Date().getFullYear();
+    const saldosPJ = getSaldoPJ(m, anoCortePJ);
+    if (saldosPJ.length === 0) {
+      container.innerHTML = `<div class="form-info">PJ — Nenhum período disponível ainda (direito nasce em ${anoCortePJ >= (parseDate(m.admissao).getFullYear()+1) ? anoCortePJ : parseDate(m.admissao).getFullYear()+1}).</div>`;
+    } else {
+      const comSaldoPJ = saldosPJ.filter(s=>s.disponivel>0);
+      const paraExibirPJ = comSaldoPJ.length>0 ? comSaldoPJ : [saldosPJ[saldosPJ.length-1]];
+      const linhasPJ = paraExibirPJ.map((s,i)=>`
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:6px;">
+          <input type="radio" name="periodo-pj" value="${s.numero}"
+            ${i===0?'checked':''}
+            style="accent-color:var(--accent);">
+          <span>${s.ano}
+            · <strong>${s.disponivel} dias úteis disponíveis</strong> de ${s.total}
+            · ${s.usados} usados</span>
+        </label>`).join('');
+      container.innerHTML = `<div class="form-info">
+        <div style="font-weight:600;margin-bottom:4px;">Selecione o ano (saldo PJ):</div>
+        ${linhasPJ}
+        <div style="font-size:11px;color:var(--ink3);margin-top:8px;">Anos com saldo pendente ficam disponíveis até serem utilizados.</div>
+      </div>`;
+    }
+  } else {
+    // Usar ano da data de início se já selecionada, senão ano atual
+    const inicioVal = document.getElementById('form-inicio').value;
+    const anoCorte = inicioVal ? parseInt(inicioVal.split('-')[0]) : new Date().getFullYear();
+    const saldos = getSaldoCLT(m, anoCorte);
+    const periodos = getPeriodosAquisitivos(m);
+    const corteForm = new Date(anoCorte, 11, 31);
+    const proximo = periodos.find(p=>parseDate(p.direitoEm)>corteForm);
+    if (saldos.length===0) {
+      const meses = proximo?Math.ceil((parseDate(proximo.direitoEm)-hoje)/(86400000*30)):'?';
+      container.innerHTML = `<div class="form-info">CLT — Nenhum período disponível em ${anoCorte}. Próximo período completa em ${proximo?formatDate(proximo.direitoEm):'?'} (~${meses} meses).</div>`;
+    } else {
+      const comSaldo = saldos.filter(s=>s.disponivel>0);
+      const paraExibir = comSaldo.length>0 ? comSaldo : saldos;
+      const linhas = paraExibir.map((s,i)=>`
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:6px;">
+          <input type="radio" name="periodo-clt" value="${s.numero}"
+            ${i===0?'checked':''}
+            style="accent-color:var(--accent);">
+          <span>${s.numero}º período (${formatDate(s.inicio)} – ${formatDate(s.fim)})
+            · <strong>${s.disponivel} dias disponíveis</strong>
+            · vence ${formatDate(s.vence)}</span>
+        </label>`).join('');
+      container.innerHTML = `<div class="form-info">
+        <div style="font-weight:600;margin-bottom:4px;">Selecione o período aquisitivo:</div>
+        ${linhas}
+        <div style="font-size:11px;color:var(--ink3);margin-top:8px;">Períodos baseados em ${anoCorte} — ajuste ao selecionar a data de início.</div>
+      </div>`;
+    }
+  }
+  calcularDias();
+}
+
+function calcularDias() {
+  const id = parseInt(document.getElementById('form-funcionario').value);
+  const inicio = document.getElementById('form-inicio').value;
+  const fim = document.getElementById('form-fim').value;
+  const container = document.getElementById('form-calculo');
+  if (!id||!inicio||!fim) { container.style.display='none'; return; }
+  if (inicio>fim) { container.style.display='block'; container.innerHTML='⚠️ Data de fim deve ser após data de início.'; return; }
+  const m = getMembro(id);
+  const dias = calcDias(m, inicio, fim);
+  const tipo = m.tipo==='clt'?'dias corridos':'dias úteis';
+  container.style.display='block';
+  container.innerHTML=`📅 Período de <strong>${formatDate(inicio)}</strong> a <strong>${formatDate(fim)}</strong> = <strong>${dias} ${tipo}</strong>`;
+
+  // Atualizar opções de período quando a data muda
+  if ((m.tipo === 'clt' || m.tipo === 'estagiario' || m.tipo === 'pj') && inicio) {
+    onFuncionarioChange(); // re-renderiza com o ano correto
+  }
+}
+
+async function registrarFerias() {
+  const id = parseInt(document.getElementById('form-funcionario').value);
+  const inicio = document.getElementById('form-inicio').value;
+  const fim = document.getElementById('form-fim').value;
+  const obs = document.getElementById('form-obs').value.trim();
+  if (!id||!inicio||!fim) { alert('Preencha todos os campos obrigatórios.'); return; }
+  if (inicio>fim) { alert('Data de fim deve ser após data de início.'); return; }
+  const m = getMembro(id);
+  const dias = calcDias(m, inicio, fim);
+  const conflito = ferias.find(x=>x.funcId===id&&!(fim<x.inicio||inicio>x.fim));
+  if (conflito) { alert(`Já existe um período que se sobrepõe para ${m.nome}.`); return; }
+  let periodoAquisitivo = null;
+  if (m.tipo==='clt') {
+    // Usar o ano das férias como corte para encontrar o período correto
+    const anoFerias = parseInt(inicio.split('-')[0]);
+    const radio = document.querySelector('input[name="periodo-clt"]:checked');
+    if (radio) {
+      periodoAquisitivo = parseInt(radio.value);
+      // Validar se o período tem saldo suficiente
+      const saldos = getSaldoCLT(m, anoFerias);
+      const saldo = saldos.find(s => s.numero === periodoAquisitivo);
+      if (saldo && saldo.disponivel < dias) {
+        const confirmar = confirm(`Atenção: este período tem apenas ${saldo.disponivel} dias disponíveis, mas você está registrando ${dias} dias. Deseja continuar mesmo assim?`);
+        if (!confirmar) return;
+      }
+    } else {
+      // Sem radio selecionado: usar o período mais antigo com saldo no ano das férias
+      const saldos = getSaldoCLT(m, anoFerias);
+      const comSaldo = saldos.filter(s => s.disponivel > 0);
+      if (comSaldo.length > 0) periodoAquisitivo = comSaldo[0].numero;
+    }
+  } else if (m.tipo==='estagiario') {
+    const anoFeriasEst = parseInt(inicio.split('-')[0]);
+    const radio = document.querySelector('input[name="periodo-est"]:checked');
+    if (radio) {
+      periodoAquisitivo = parseInt(radio.value);
+    } else {
+      // Fallback: usar o ano das férias como corte
+      const saldos = getSaldoEstagiario(m, anoFeriasEst);
+      const comSaldo = saldos.filter(s=>s.disponivel>0);
+      if (comSaldo.length>0) periodoAquisitivo = comSaldo[0].numero;
+    }
+  } else if (m.tipo==='pj') {
+    // periodoAquisitivo para PJ = ano ao qual os dias devem ser debitados
+    const anoFeriasPJ = parseInt(inicio.split('-')[0]);
+    const radio = document.querySelector('input[name="periodo-pj"]:checked');
+    if (radio) {
+      periodoAquisitivo = parseInt(radio.value);
+      const saldos = getSaldoPJ(m, Math.max(anoFeriasPJ, periodoAquisitivo));
+      const saldo = saldos.find(s => s.numero === periodoAquisitivo);
+      if (saldo && saldo.disponivel < dias) {
+        const confirmar = confirm(`Atenção: o saldo de ${periodoAquisitivo} tem apenas ${saldo.disponivel} dias disponíveis, mas você está registrando ${dias} dias. Deseja continuar mesmo assim?`);
+        if (!confirmar) return;
+      }
+    } else {
+      // Sem radio selecionado: usar o ano mais antigo com saldo, senão o ano da data
+      const saldos = getSaldoPJ(m, anoFeriasPJ);
+      const comSaldo = saldos.filter(s => s.disponivel > 0);
+      periodoAquisitivo = comSaldo.length > 0 ? comSaldo[0].numero : anoFeriasPJ;
+    }
+  }
+  ferias.push({ id: Date.now(), funcId: id, inicio, fim, dias, obs, periodoAquisitivo, criadoEm: new Date().toISOString() });
+  await salvarFerias();
+  limparForm();
+  alert(`✅ Férias de ${m.nome} registradas! (${dias} dias)`);
+  navigate('dashboard');
+}
+
+function limparForm() {
+  document.getElementById('form-funcionario').value='';
+  document.getElementById('form-inicio').value='';
+  document.getElementById('form-fim').value='';
+  document.getElementById('form-obs').value='';
+  document.getElementById('form-info-funcionario').innerHTML='';
+  document.getElementById('form-calculo').style.display='none';
+}
+
+// ===================== HISTÓRICO =====================
+function renderHistorico() {
+  const tabsEl = document.getElementById('historico-tabs');
+  tabsEl.innerHTML = `<button class="tab ${currentHistoricoTab==='todos'?'active':''}" onclick="setHistoricoTab('todos')">Todos</button>`;
+  MEMBROS.forEach(m => {
+    tabsEl.innerHTML += `<button class="tab ${currentHistoricoTab===m.id?'active':''}" onclick="setHistoricoTab(${m.id})">${m.nome}</button>`;
+  });
+
+  const list = document.getElementById('historico-list');
+  let filtered = ferias.filter(x=>x.inicio.startsWith(currentYear+'')||x.fim.startsWith(currentYear+''));
+  if (currentHistoricoTab!=='todos') filtered=filtered.filter(x=>x.funcId===currentHistoricoTab);
+  filtered=filtered.sort((a,b)=>b.inicio.localeCompare(a.inicio));
+
+  if (filtered.length===0) {
+    list.innerHTML=`<div class="empty"><div class="empty-icon">🌴</div><div class="empty-text">Nenhuma férias registrada em ${currentYear}.</div></div>`;
+    return;
+  }
+
+  list.innerHTML=filtered.map(x=>{
+    const m=getMembro(x.funcId);
+    const tipo=m.tipo==='clt'?'dias corridos':'dias úteis';
+    return `<div class="ferias-item">
+      <div class="ferias-item-color" style="background:${m.cor}"></div>
+      <div class="ferias-item-info">
+        <div class="ferias-item-name">${m.nome} <span style="font-weight:400;color:var(--ink3);font-size:12px;">· ${TIPO_LABEL[m.tipo]}</span></div>
+        <div class="ferias-item-dates">${formatDate(x.inicio)} → ${formatDate(x.fim)}${x.obs?' · '+x.obs:''}</div>
+        ${x.periodoAquisitivo?`<div style="font-size:11px;color:var(--ink3);margin-top:2px;">${x.periodoAquisitivo}º período aquisitivo</div>`:''}
+      </div>
+      <div style="text-align:right">
+        <div class="ferias-item-days">${x.dias}</div>
+        <div class="ferias-item-days-label">${tipo}</div>
+      </div>
+      <button class="btn-delete" onclick="abrirEditar(${x.id})" title="Editar" style="color:var(--ink3);">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
+      <button class="btn-delete" onclick="abrirDelete(${x.id})" title="Remover">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14a2,2,0,0,1-2,2H8a2,2,0,0,1-2-2L5,6"/><path d="M10,11v6"/><path d="M14,11v6"/><path d="M9,6V4h6v2"/></svg>
+      </button>
+    </div>`;
+  }).join('');
+}
+
+function setHistoricoTab(tab) { currentHistoricoTab=tab; renderHistorico(); }
+
+// ===================== EQUIPE =====================
+function renderEquipe() {
+  const hoje = new Date();
+  document.getElementById('func-cards').innerHTML = MEMBROS.map(m => {
+    let detalhes='';
+    if (m.tipo==='diretor'||m.tipo==='diretora') {
+      const total=ferias.filter(x=>x.funcId===m.id).reduce((a,x)=>a+x.dias,0);
+      detalhes=`<div class="func-detail">Regime: <strong>${TIPO_LABEL[m.tipo]}</strong></div>
+        <div class="func-detail">Total registrado: <strong>${total} dias</strong></div>`;
+    } else if (m.tipo==='pj') {
+      const saldosPJEq = getSaldoPJ(m, currentYear);
+      detalhes=`<div class="func-detail">Regime: <strong>PJ</strong></div>
+        <div class="func-detail">Admissão: <strong>${formatDate(m.admissao)}</strong></div>`;
+      if (saldosPJEq.length>0) saldosPJEq.forEach(s=>{detalhes+=`<div class="func-detail">Saldo ${s.ano}: <strong>${s.disponivel} / ${s.total} dias úteis</strong></div>`;});
+      else detalhes+=`<div class="func-detail">Nenhum período disponível ainda.</div>`;
+    } else if (m.tipo==='estagiario') {
+      const saldos=getSaldoEstagiario(m, currentYear);
+      const periodos=getPeriodosEstagiario(m);
+      const corteEst=new Date(currentYear,11,31);
+      const proximo=periodos.find(p=>parseDate(p.direitoEm)>corteEst);
+      detalhes=`<div class="func-detail">Regime: <strong>Estagiário</strong></div>
+        <div class="func-detail">Admissão: <strong>${formatDate(m.admissao)}</strong></div>
+        <div class="func-detail">Direito: <strong>15 dias corridos / semestre</strong></div>`;
+      if (saldos.length>0) saldos.forEach(s=>{detalhes+=`<div class="func-detail">${s.numero}º semestre: <strong>${s.disponivel} dias disponíveis</strong></div>`;});
+      else if (proximo) detalhes+=`<div class="func-detail">Direito a partir de: <strong>${formatDate(proximo.direitoEm)}</strong></div>`;
+    } else {
+      const periodos=getPeriodosAquisitivos(m);
+      const saldos=getSaldoCLT(m, currentYear);
+      const corteEq=new Date(currentYear,11,31);
+      const proximo=periodos.find(p=>parseDate(p.direitoEm)>corteEq);
+      detalhes=`<div class="func-detail">Regime: <strong>CLT</strong></div>
+        <div class="func-detail">Admissão: <strong>${formatDate(m.admissao)}</strong></div>`;
+      if (saldos.length>0) saldos.forEach(s=>{detalhes+=`<div class="func-detail">${s.numero}º período: <strong>${s.disponivel} dias disponíveis</strong></div>`;});
+      else if (proximo) detalhes+=`<div class="func-detail">Direito a partir de: <strong>${formatDate(proximo.direitoEm)}</strong></div>`;
+    }
+    return `<div class="func-card">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+        <div class="func-avatar" style="background:${m.cor}">${m.nome[0]}</div>
+        <div><div class="func-name">${m.nome}</div><div class="func-type">${TIPO_LABEL[m.tipo]}</div></div>
+      </div>${detalhes}</div>`;
+  }).join('');
+}
+
+// ===================== GERENCIAR EQUIPE =====================
+let membroEditando = null;
+let membroRemovendo = null;
+
+const COR_DEFAULTS = ['#2D6A8A','#7A4E8A','#3A7D5A','#C85A2A','#C4963A','#8A3A6A','#2D5C4E','#5A3A8A','#8A5A2A','#3A5A8A'];
+
+function renderGerenciar() {
+  const list = document.getElementById('gerenciar-list');
+  list.innerHTML = MEMBROS.map(m => `
+    <div class="membro-row">
+      <div class="membro-row-avatar" style="background:${m.cor}">${m.nome[0]}</div>
+      <div class="membro-row-info">
+        <div class="membro-row-name">${m.nome}</div>
+        <div class="membro-row-meta">${TIPO_LABEL[m.tipo]}${m.admissao?' · Admissão: '+formatDate(m.admissao):''}${m.diasAno?' · '+m.diasAno+' dias/ano':''}</div>
+      </div>
+      <button class="btn-delete" onclick="abrirEditarMembro(${m.id})" title="Editar" style="color:var(--ink3);">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
+      <button class="btn-delete" onclick="abrirRemoverMembro(${m.id})" title="Remover">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14a2,2,0,0,1-2,2H8a2,2,0,0,1-2-2L5,6"/><path d="M10,11v6"/><path d="M14,11v6"/><path d="M9,6V4h6v2"/></svg>
+      </button>
+    </div>`).join('');
+}
+
+function onTipoMembroChange() {
+  const tipo = document.getElementById('mb-tipo').value;
+  document.getElementById('mb-admissao-group').style.display = tipo === 'diretor' || tipo === 'diretora' ? 'none' : 'block';
+  document.getElementById('mb-dias-group').style.display = tipo === 'pj' ? 'block' : 'none';
+}
+
+function abrirModalMembro() {
+  membroEditando = null;
+  document.getElementById('modal-membro-title').textContent = 'Novo Membro';
+  document.getElementById('modal-membro-desc').textContent = 'Preencha os dados do novo membro da equipe.';
+  document.getElementById('btn-salvar-membro').textContent = 'Adicionar';
+  document.getElementById('mb-nome').value = '';
+  document.getElementById('mb-tipo').value = 'clt';
+  document.getElementById('mb-admissao').value = '';
+  document.getElementById('mb-dias').value = '22';
+  // Cor aleatória da paleta
+  const usadas = MEMBROS.map(m=>m.cor);
+  const livre = COR_DEFAULTS.find(c=>!usadas.includes(c)) || '#2D5C4E';
+  document.getElementById('mb-cor').value = livre;
+  onTipoMembroChange();
+  document.getElementById('modal-membro').classList.add('open');
+}
+
+function abrirEditarMembro(id) {
+  const m = MEMBROS.find(x=>x.id===id);
+  if (!m) return;
+  membroEditando = id;
+  document.getElementById('modal-membro-title').textContent = 'Editar Membro';
+  document.getElementById('modal-membro-desc').textContent = `Editando dados de ${m.nome}.`;
+  document.getElementById('btn-salvar-membro').textContent = 'Salvar';
+  document.getElementById('mb-nome').value = m.nome;
+  document.getElementById('mb-tipo').value = m.tipo;
+  document.getElementById('mb-admissao').value = m.admissao || '';
+  document.getElementById('mb-dias').value = m.diasAno || 22;
+  document.getElementById('mb-cor').value = m.cor;
+  onTipoMembroChange();
+  document.getElementById('modal-membro').classList.add('open');
+}
+
+async function salvarMembro() {
+  const nome = document.getElementById('mb-nome').value.trim();
+  const tipo = document.getElementById('mb-tipo').value;
+  const admissao = document.getElementById('mb-admissao').value || null;
+  const cor = document.getElementById('mb-cor').value;
+  const diasAno = tipo === 'pj' ? parseInt(document.getElementById('mb-dias').value) : null;
+
+  if (!nome) { alert('Informe o nome do membro.'); return; }
+  if (tipo !== 'diretor' && tipo !== 'diretora' && !admissao) { alert('Informe a data de admissão.'); return; }
+
+  if (membroEditando) {
+    const idx = MEMBROS.findIndex(m=>m.id===membroEditando);
+    if (idx !== -1) MEMBROS[idx] = { ...MEMBROS[idx], nome, tipo, admissao, cor, diasAno };
+  } else {
+    const newId = Math.max(...MEMBROS.map(m=>m.id), 0) + 1;
+    MEMBROS.push({ id: newId, nome, tipo, admissao, cor, diasAno });
+  }
+
+  closeModalMembro();
+  await salvarFerias();
+  renderGerenciar();
+}
+
+function closeModalMembro() {
+  document.getElementById('modal-membro').classList.remove('open');
+  membroEditando = null;
+}
+
+function abrirRemoverMembro(id) {
+  const m = MEMBROS.find(x=>x.id===id);
+  if (!m) return;
+  membroRemovendo = id;
+  document.getElementById('modal-remover-membro-desc').textContent = `Tem certeza que deseja remover ${m.nome}? Os registros de férias serão mantidos no histórico.`;
+  document.getElementById('modal-remover-membro').classList.add('open');
+}
+
+async function confirmarRemoverMembro() {
+  MEMBROS = MEMBROS.filter(m=>m.id!==membroRemovendo);
+  closeModalRemoverMembro();
+  await salvarFerias();
+  renderGerenciar();
+}
+
+function closeModalRemoverMembro() {
+  document.getElementById('modal-remover-membro').classList.remove('open');
+  membroRemovendo = null;
+}
+
+// ===================== CALENDÁRIO =====================
+const FERIADO_NOMES = {};
+
+function getNomeFeriados(year) {
+  const p = getPascoa(year);
+  const off = (d, o) => { const x = new Date(d); x.setDate(x.getDate()+o); return dateToStr(x); };
+  const m = {};
+  // Nacionais fixos
+  m[`${year}-01-01`] = 'Confraternização Universal';
+  m[`${year}-04-21`] = 'Tiradentes';
+  m[`${year}-05-01`] = 'Dia do Trabalho';
+  m[`${year}-09-07`] = 'Independência do Brasil';
+  m[`${year}-10-12`] = 'Nossa Sra. Aparecida';
+  m[`${year}-11-02`] = 'Finados';
+  m[`${year}-11-15`] = 'Proclamação da República';
+  m[`${year}-11-20`] = 'Consciência Negra';
+  m[`${year}-12-25`] = 'Natal';
+  // Móveis
+  m[off(p,-48)] = 'Carnaval (Segunda)';
+  m[off(p,-47)] = 'Carnaval (Terça)';
+  m[off(p,-2)]  = 'Sexta-feira Santa';
+  m[dateToStr(p)] = 'Páscoa';
+  m[off(p,60)]  = 'Corpus Christi';
+  // RJ
+  m[`${year}-04-23`] = 'Dia de São Jorge (RJ)';
+  m[`${year}-01-20`] = 'São Sebastião — Rio de Janeiro';
+  return m;
+}
+
+function renderCalendario() {
+  document.getElementById('cal-subtitle').textContent = `Feriados e dias úteis de ${currentYear}`;
+  const container = document.getElementById('calendario-container');
+  const hoje = new Date();
+  const nomesMap = getNomeFeriados(currentYear);
+  const feriadosSet = getFeriadosAno(currentYear);
+  const isLeap = (currentYear%4===0&&currentYear%100!==0)||currentYear%400===0;
+  const diasMes = [31,isLeap?29:28,31,30,31,30,31,31,30,31,30,31];
+  const MESES_FULL_LOCAL = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const DOWS = ['D','S','T','Q','Q','S','S'];
+
+  container.innerHTML = MESES_FULL_LOCAL.map((mes, mi) => {
+    const totalDias = diasMes[mi];
+    const primeiroDia = new Date(currentYear, mi, 1).getDay();
+    let diasUteisMes = 0;
+    let feriadosMes = 0;
+
+    let cells = '';
+    // Células vazias antes do primeiro dia
+    for (let i = 0; i < primeiroDia; i++) cells += `<div class="cal-day empty"></div>`;
+
+    for (let d = 1; d <= totalDias; d++) {
+      const date = new Date(currentYear, mi, d);
+      const str = dateToStr(date);
+      const dow = date.getDay();
+      const isHoje = date.toDateString() === hoje.toDateString();
+      const isFer = feriadosSet.has(str);
+      const isFDS = dow === 0 || dow === 6;
+      const nome = nomesMap[str];
+
+      if (!isFDS && !isFer) diasUteisMes++;
+      if (isFer) feriadosMes++;
+
+      let cls = 'cal-day';
+      if (isHoje) cls += ' hoje';
+      else if (isFer) cls += ' feriado';
+      else if (isFDS) cls += ' fim-semana';
+
+      const title = nome ? nome : '';
+      cells += `<div class="${cls}"${title?` title="${title}"`:''}>${d}${isFer?'*':''}</div>`;
+    }
+
+    return `<div class="cal-mes">
+      <div class="cal-mes-title">${mes}</div>
+      <div class="cal-grid">
+        ${DOWS.map(d=>`<div class="cal-dow">${d}</div>`).join('')}
+        ${cells}
+      </div>
+      <div style="font-size:10px;color:var(--ink3);margin-top:8px;">${diasUteisMes} dias úteis · ${feriadosMes} feriados</div>
+    </div>`;
+  }).join('');
+
+  // Legenda
+  const totalUteisAno = Array.from({length:12},(_,mi)=>{
+    const dias = diasMes[mi];
+    let c=0;
+    for(let d=1;d<=dias;d++){
+      const date=new Date(currentYear,mi,d);
+      const str=dateToStr(date);
+      const dow=date.getDay();
+      if(dow!==0&&dow!==6&&!feriadosSet.has(str))c++;
+    }
+    return c;
+  }).reduce((a,b)=>a+b,0);
+
+  // Limpar legenda anterior antes de inserir nova
+  const legendaExistente = document.querySelector('.cal-legenda');
+  if (legendaExistente) legendaExistente.remove();
+
+  container.insertAdjacentHTML('beforebegin', `
+    <div class="cal-legenda" style="margin-bottom:16px;">
+      <div class="cal-legenda-item"><div class="cal-legenda-dot" style="background:var(--accent);"></div> Hoje</div>
+      <div class="cal-legenda-item"><div class="cal-legenda-dot" style="background:var(--amber-light);border:1px solid var(--amber);"></div> Feriado (*)</div>
+      <div class="cal-legenda-item"><div class="cal-legenda-dot" style="background:var(--surface2);"></div> Fim de semana</div>
+      <div class="cal-legenda-item" style="margin-left:auto;font-weight:600;color:var(--ink);">Total ${currentYear}: ${totalUteisAno} dias úteis</div>
+    </div>`);
+}
+
+// ===================== EDITAR =====================
+let editTarget = null;
+
+function abrirEditar(id) {
+  const x = ferias.find(f => f.id === id);
+  if (!x) return;
+  const m = getMembro(x.funcId);
+  editTarget = id;
+  document.getElementById('edit-nome').value = `${m.nome} — ${TIPO_LABEL[m.tipo]}`;
+  document.getElementById('edit-inicio').value = x.inicio;
+  document.getElementById('edit-fim').value = x.fim;
+  document.getElementById('edit-obs').value = x.obs || '';
+  calcularDiasEdit();
+  document.getElementById('modal-editar').classList.add('open');
+}
+
+function calcularDiasEdit() {
+  const inicio = document.getElementById('edit-inicio').value;
+  const fim = document.getElementById('edit-fim').value;
+  const container = document.getElementById('edit-calculo');
+  if (!inicio || !fim) { container.style.display='none'; return; }
+  if (inicio > fim) { container.style.display='block'; container.innerHTML='⚠️ Data de fim deve ser após data de início.'; return; }
+  const x = ferias.find(f => f.id === editTarget);
+  if (!x) return;
+  const m = getMembro(x.funcId);
+  const dias = calcDias(m, inicio, fim);
+  const tipo = m.tipo==='clt'?'dias corridos':'dias úteis';
+  container.style.display='block';
+  container.innerHTML=`📅 <strong>${formatDate(inicio)}</strong> a <strong>${formatDate(fim)}</strong> = <strong>${dias} ${tipo}</strong>`;
+}
+
+async function salvarEdicao() {
+  const inicio = document.getElementById('edit-inicio').value;
+  const fim = document.getElementById('edit-fim').value;
+  const obs = document.getElementById('edit-obs').value.trim();
+  if (!inicio || !fim) { alert('Preencha as datas.'); return; }
+  if (inicio > fim) { alert('Data de fim deve ser após data de início.'); return; }
+
+  const idx = ferias.findIndex(f => f.id === editTarget);
+  if (idx === -1) return;
+  const m = getMembro(ferias[idx].funcId);
+
+  // Verificar conflito ignorando o próprio registro
+  const conflito = ferias.find(x => x.id !== editTarget && x.funcId === ferias[idx].funcId && !(fim < x.inicio || inicio > x.fim));
+  if (conflito) { alert('Esse período se sobrepõe com outro já registrado.'); return; }
+
+  ferias[idx].inicio = inicio;
+  ferias[idx].fim = fim;
+  ferias[idx].dias = calcDias(m, inicio, fim);
+  ferias[idx].obs = obs;
+
+  closeModalEditar();
+  await salvarFerias();
+  renderHistorico();
+}
+
+function closeModalEditar() {
+  document.getElementById('modal-editar').classList.remove('open');
+  editTarget = null;
+}
+
+// ===================== DELETE =====================
+function abrirDelete(id) { deleteTarget=id; document.getElementById('modal-delete').classList.add('open'); }
+function closeModal() { document.getElementById('modal-delete').classList.remove('open'); deleteTarget=null; }
+async function confirmarDelete() {
+  if (!deleteTarget) return;
+  ferias=ferias.filter(x=>x.id!==deleteTarget);
+  closeModal();
+  await salvarFerias();
+  renderHistorico();
+}
+
+// ===================== EXPORT =====================
+function exportExcel() {
+  const wb = XLSX.utils.book_new();
+  const membrosData=[['Nome','Tipo','Admissão','Dias/Ano']];
+  MEMBROS.forEach(m=>membrosData.push([m.nome,TIPO_LABEL[m.tipo],m.admissao||'—',m.diasAno||'—']));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(membrosData),'Equipe');
+
+  const feriasData=[['Membro da Equipe','Tipo','Início','Fim','Dias','Tipo de Dia','Observação']];
+  ferias.sort((a,b)=>a.inicio.localeCompare(b.inicio)).forEach(x=>{
+    const m=getMembro(x.funcId);
+    feriasData.push([m.nome,TIPO_LABEL[m.tipo],formatDate(x.inicio),formatDate(x.fim),x.dias,m.tipo==='clt'?'Corridos':'Úteis',x.obs||'']);
+  });
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(feriasData),'Férias');
+  XLSX.writeFile(wb,`ferias_${currentYear}.xlsx`);
+}
+
+// ===================== INIT =====================
+document.getElementById('yearLabel').textContent = currentYear;
+document.getElementById('modal-delete').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+// Tentar restaurar sessão do localStorage
+(async function tentarRestaurarSessao() {
+  const token = localStorage.getItem('inovatus_access_token');
+  const expiresAt = parseInt(localStorage.getItem('inovatus_expires_at') || '0');
+  const refreshToken = localStorage.getItem('inovatus_refresh_token');
+
+  if (token && Date.now() < expiresAt - 60000) {
+    // Token ainda válido
+    accessToken = token;
+    document.getElementById('login-screen').style.display = 'flex';
+    showLoading('Restaurando sessão...');
+    try {
+      await inicializarApp();
+    } catch(e) {
+      hideLoading();
+      localStorage.removeItem('inovatus_access_token');
+      localStorage.removeItem('inovatus_expires_at');
+    }
+  } else if (refreshToken) {
+    // Token expirado mas temos refresh token — renovar silenciosamente
+    showLoading('Renovando sessão...');
+    try {
+      const body = new URLSearchParams({
+        client_id: CLIENT_ID,
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        scope: SCOPES.join(' ')
+      });
+      const res = await fetch(`https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString()
+      });
+      if (res.ok) {
+        const data = await res.json();
+        accessToken = data.access_token;
+        const expiresAt = Date.now() + (data.expires_in * 1000);
+        localStorage.setItem('inovatus_access_token', data.access_token);
+        localStorage.setItem('inovatus_expires_at', expiresAt);
+        if (data.refresh_token) localStorage.setItem('inovatus_refresh_token', data.refresh_token);
+        await inicializarApp();
+      } else {
+        hideLoading();
+        localStorage.removeItem('inovatus_refresh_token');
+      }
+    } catch(e) {
+      hideLoading();
+    }
+  }
+})();
+document.getElementById('modal-editar').addEventListener('click',function(e){if(e.target===this)closeModalEditar();});
+document.getElementById('modal-membro').addEventListener('click',function(e){if(e.target===this)closeModalMembro();});
+document.getElementById('modal-remover-membro').addEventListener('click',function(e){if(e.target===this)closeModalRemoverMembro();});
+</script>
+</body>
+</html>
