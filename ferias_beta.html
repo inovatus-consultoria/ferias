@@ -195,8 +195,10 @@
   }
 
   .page-title {
-    font-family: 'DM Serif Display', serif;
-    font-size: 32px; color: var(--ink); line-height: 1;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: 28px; color: var(--ink); line-height: 1.15;
+    letter-spacing: -0.01em;
   }
   .page-subtitle { font-size: 13px; color: var(--ink3); margin-top: 4px; }
 
@@ -212,11 +214,6 @@
   .btn-ghost { background: transparent; color: var(--ink2); border: 1px solid var(--border); }
   .btn-ghost:hover { background: var(--surface2); }
   .btn-sm { padding: 6px 12px; font-size: 12px; }
-
-  #dash-title {
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 600;
-  }
 
   .saldo-list {
     border: 1px solid var(--border);
@@ -247,11 +244,22 @@
   .saldo-period-line {
     display: flex; align-items: center; gap: 14px; padding: 10px 18px;
   }
-  .saldo-period-consolidado { cursor: pointer; }
+  .saldo-period-consolidado {
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .saldo-period-consolidado:hover { background: var(--surface2); }
   .saldo-period-expandido { background: #FAFBFA; }
 
   .saldo-period-label {
-    width: 90px; font-size: 11px; font-style: italic; color: var(--ink3);
+    width: 92px; flex-shrink: 0;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .saldo-period-label-main {
+    font-size: 11px; font-style: italic; color: var(--ink3);
+  }
+  .saldo-period-sub {
+    font-size: 9px; color: var(--ink3); opacity: 0.75; margin-top: 1px;
   }
   .saldo-period-bar {
     flex: 1; height: 5px; background: var(--surface2);
@@ -269,8 +277,16 @@
   }
 
   .saldo-period-chevron {
-    width: 14px; font-size: 11px; color: var(--ink3); text-align: center;
+    width: 20px; height: 20px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    color: var(--ink3);
   }
+  .saldo-period-chevron svg { transition: transform 0.2s ease; }
+  .saldo-period-consolidado:hover .saldo-period-chevron {
+    background: var(--surface); color: var(--accent);
+  }
+  .saldo-chevron-aberto svg { transform: rotate(90deg); }
 
   .alert {
     display: flex; align-items: flex-start; gap: 12px;
@@ -562,7 +578,7 @@
   <div class="page active" id="page-dashboard">
     <div class="page-header">
       <div>
-        <div class="page-title" id="dash-title">Visão Geral</div>
+        <div class="page-title">Visão Geral</div>
         <div class="page-subtitle" id="dash-subtitle"></div>
       </div>
       <button class="btn btn-ghost btn-sm" onclick="exportExcel()">
@@ -1043,15 +1059,16 @@ async function carregarFerias() {
       criadoEm: r.criadoEm
     })).filter(r => r.funcId && r.inicio && r.fim);
 
-    // Migração: registros PJ antigos não tinham periodoAquisitivo (o saldo era
-    // calculado só pela data). Atribuímos o ano de início como período, preservando
-    // o comportamento histórico e permitindo que o novo cálculo por ano funcione.
+    // Migração PJ: registros antigos não tinham periodoAquisitivo (saldo calculado só
+    // pela data), ou tinham o ano-calendário salvo por uma versão anterior deste app
+    // (valor > 100, nunca colide com um número de período válido). Em ambos os casos,
+    // recalculamos o período aquisitivo (1º, 2º, 3º...) a partir da data de início.
+    // Valores já pequenos (1, 2, 3...) foram atribuídos manualmente (resgate de saldo
+    // de um período anterior) e são preservados como estão.
     ferias.forEach(f => {
-      if (f.periodoAquisitivo == null) {
-        const membro = getMembro(f.funcId);
-        if (membro && membro.tipo === 'pj') {
-          f.periodoAquisitivo = parseInt(f.inicio.split('-')[0]);
-        }
+      const membro = getMembro(f.funcId);
+      if (membro && membro.tipo === 'pj' && (f.periodoAquisitivo == null || f.periodoAquisitivo > 100)) {
+        f.periodoAquisitivo = periodoNumeroParaData(membro, f.inicio);
       }
     });
   } catch(e) {
@@ -1213,43 +1230,15 @@ function getPeriodosAquisitivos(membro) {
   return periodos;
 }
 
-// Períodos anuais de PJ (um por ano-calendário, a partir do ano seguinte à admissão).
-// Não têm data de vencimento: um saldo não utilizado permanece pendente até ser
-// debitado contra aquele ano específico (via periodoAquisitivo) em um registro futuro.
-function getPeriodosPJ(membro) {
-  if (!membro.admissao) return [];
-  const adm = parseDate(membro.admissao);
-  const anoInicio = adm.getFullYear() + 1;
-  const anoFim = currentYear + 1; // inclui o próximo ano p/ mensagens de "ainda não iniciado"
-  const periodos = [];
-  for (let ano = anoInicio; ano <= anoFim; ano++) {
-    periodos.push({ numero: ano, ano, inicio: `${ano}-01-01`, fim: `${ano}-12-31` });
-  }
-  return periodos;
-}
-
-// cutoffYear: ano de corte para calcular períodos disponíveis (mesmo padrão de getSaldoCLT)
-function getSaldoPJ(membro, cutoffYear) {
-  const periodos = getPeriodosPJ(membro);
-  const corte = cutoffYear || currentYear;
-  return periodos
-    .filter(p => p.ano <= corte)
-    .map(p => {
-      const usados = ferias
-        .filter(f => f.funcId === membro.id && f.periodoAquisitivo === p.ano)
-        .reduce((acc, f) => acc + calcDias(membro, f.inicio, f.fim), 0);
-      return { ...p, usados, disponivel: membro.diasAno - usados, total: membro.diasAno };
-    });
-}
-
-// cutoffYear: ano de corte para calcular períodos disponíveis
-// Se não informado, usa 31/12 do ano atual ou hoje (o que for menor)
-function getSaldoCLT(membro, cutoffYear) {
+// Saldo genérico por período aquisitivo (ciclos de 12 meses a partir da admissão,
+// mesmo modelo pra CLT, PJ e — via wrapper próprio — Estagiário).
+// totalDias: teto de dias do tipo (30 p/ CLT, membro.diasAno p/ PJ).
+// cutoffYear: ano de corte para considerar períodos disponíveis (31/12 do ano, ou hoje se omitido).
+function getSaldoPeriodoAquisitivo(membro, cutoffYear, totalDias) {
   const periodos = getPeriodosAquisitivos(membro);
   const hoje = new Date();
-  // Data de corte: 31/12 do ano selecionado, mas nunca no futuro além do necessário
   const corte = cutoffYear
-    ? new Date(cutoffYear, 11, 31)  // 31/12 do ano selecionado
+    ? new Date(cutoffYear, 11, 31)
     : hoje;
 
   return periodos
@@ -1258,8 +1247,31 @@ function getSaldoCLT(membro, cutoffYear) {
       const usados = ferias
         .filter(f => f.funcId === membro.id && f.periodoAquisitivo === p.numero)
         .reduce((acc, f) => acc + calcDias(membro, f.inicio, f.fim), 0);
-      return { ...p, usados, disponivel: Math.max(0, 30 - usados), total: 30 };
+      return { ...p, usados, disponivel: Math.max(0, totalDias - usados), total: totalDias };
     });
+}
+
+// cutoffYear: ano de corte para calcular períodos disponíveis
+// Se não informado, usa 31/12 do ano atual ou hoje (o que for menor)
+function getSaldoCLT(membro, cutoffYear) {
+  return getSaldoPeriodoAquisitivo(membro, cutoffYear, 30);
+}
+
+// PJ usa o mesmo modelo de período aquisitivo do CLT (ciclos de 12 meses a partir
+// da admissão, não mais ano-calendário) — mas contando dias úteis, não corridos.
+// calcDias() já resolve isso automaticamente (só CLT/Estagiário contam dia corrido),
+// e o teto é membro.diasAno em vez dos 30 fixos do CLT.
+function getSaldoPJ(membro, cutoffYear) {
+  return getSaldoPeriodoAquisitivo(membro, cutoffYear, membro.diasAno);
+}
+
+// Dado um membro e uma data, retorna o número do período aquisitivo (1º, 2º...) ao
+// qual ela pertence. Usado na migração de registros antigos e como fallback de registro.
+function periodoNumeroParaData(membro, dataStr) {
+  const periodos = getPeriodosAquisitivos(membro);
+  const d = parseDate(dataStr);
+  const p = periodos.find(p => d >= parseDate(p.inicio) && d <= parseDate(p.fim));
+  return p ? p.numero : null;
 }
 
 // Determina qual período sugerir para um novo registro CLT (sempre usa hoje como corte)
@@ -1338,28 +1350,8 @@ function renderDashboard() {
 }
 
 function renderAlerts() {
-  // Alertas movidos para dentro dos cards — limpar container
+  // Alertas movidos para dentro das linhas — limpar container
   document.getElementById('alerts-container').innerHTML = '';
-}
-
-function getAlertaCard(s, hoje, tipo) {
-  if (s.disponivel <= 0) return '';
-  const vence = parseDate(s.vence);
-  const dias = Math.round((vence - hoje) / 86400000);
-  const venceu = dias < 0;
-  if (venceu && currentYear !== hoje.getFullYear()) return '';
-  if (venceu) {
-    return `<div style="margin-top:8px;font-size:11px;font-weight:600;color:var(--red);display:flex;align-items:center;gap:4px;">
-      ⚠️ Período vencido — ${s.disponivel} dias pendentes
-    </div>`;
-  }
-  // Alerta apenas se faltar menos de 180 dias
-  if (dias < 180) {
-    return `<div style="margin-top:8px;font-size:11px;font-weight:600;color:var(--amber);display:flex;align-items:center;gap:4px;">
-      ⏰ Vence em ${dias} dias
-    </div>`;
-  }
-  return '';
 }
 
 // Estado local de UI (não persiste): quais membros estão com o acúmulo expandido
@@ -1370,46 +1362,59 @@ function toggleSaldoAcumulo(id) {
   renderSaldoCards();
 }
 
-function corSaldo(disponivel) {
+// Cor do número "restantes" (único sinal de urgência que resta — a barra em si
+// sempre usa a cor cadastrada da pessoa).
+function corRestante(disponivel) {
   if (disponivel <= 0) return 'var(--red)';
   if (disponivel <= 5) return 'var(--amber)';
-  return 'var(--green)';
+  return 'var(--ink)';
 }
 
 function pctOf(s) {
   return s.total > 0 ? Math.min(100, (s.usados / s.total) * 100) : 0;
 }
 
-function labelPeriodo(s, tipo) {
-  if (tipo === 'pj') return String(s.ano);
+// CLT, PJ e Estagiário agora compartilham o mesmo formato de período (inicio/fim
+// vindos de ciclos de 12 meses a partir da admissão), então não precisam mais de
+// tratamento por tipo aqui.
+function labelPeriodo(s) {
   const ai = parseDate(s.inicio).getFullYear();
   const af = parseDate(s.fim).getFullYear();
   return ai === af ? String(ai) : `${ai}/${af}`;
 }
 
-function intervaloAnos(ativos, tipo) {
+function intervaloAnos(ativos) {
   const primeiro = ativos[0], ultimo = ativos[ativos.length - 1];
-  if (tipo === 'pj') return `${primeiro.ano}–${ultimo.ano}`;
   return `${parseDate(primeiro.inicio).getFullYear()}–${parseDate(ultimo.fim).getFullYear()}`;
 }
 
-function periodoLinha({ label, pct, corBar, usados, restantes, expandido }) {
+const CHEVRON_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,6 15,12 9,18"></polyline></svg>';
+
+function periodoLinha({ label, sub, pct, corBarra, usados, disponivel, semRestante, expandido }) {
+  const restanteHTML = semRestante ? '' : `
+    <div class="saldo-period-metric"><span class="saldo-period-num" style="color:${corRestante(disponivel)}">${Math.max(0, disponivel)}</span><span class="saldo-period-metric-label">restantes</span></div>`;
   return `<div class="saldo-period-line${expandido ? ' saldo-period-expandido' : ''}">
-    <div class="saldo-period-label">${label}</div>
-    <div class="saldo-period-bar"><div class="saldo-period-bar-fill" style="width:${Math.min(100,pct)}%;background:${corBar}"></div></div>
-    <div class="saldo-period-metric"><span class="saldo-period-num" style="color:var(--ink2)">${usados}</span><span class="saldo-period-metric-label">usados</span></div>
-    <div class="saldo-period-metric"><span class="saldo-period-num" style="color:var(--ink)">${restantes}</span><span class="saldo-period-metric-label">restantes</span></div>
+    <div class="saldo-period-label">
+      <div class="saldo-period-label-main">${label}</div>
+      ${sub ? `<div class="saldo-period-sub">${sub}</div>` : ''}
+    </div>
+    <div class="saldo-period-bar"><div class="saldo-period-bar-fill" style="width:${Math.min(100,pct)}%;background:${corBarra}"></div></div>
+    <div class="saldo-period-metric"><span class="saldo-period-num" style="color:var(--ink2)">${usados}</span><span class="saldo-period-metric-label">usados</span></div>${restanteHTML}
     <div class="saldo-period-chevron"></div>
   </div>`;
 }
 
 // Constrói o(s) período(s) de um membro (CLT, PJ ou Estagiário) já no formato
 // consolidado (1 período ativo) ou com toggle de acúmulo (2+ períodos ativos
-// simultâneos — ex.: pessoa não usou o saldo do ano/período anterior).
-function renderPeriodosGenerico(m, saldos, tipo) {
+// simultâneos — ex.: pessoa não usou o saldo do período anterior).
+// periodosTodos: lista completa (não filtrada por corte) — usada só pra achar o
+// próximo direito quando o membro ainda está "em aquisição".
+function renderPeriodosGenerico(m, saldos, periodosTodos, corPessoa) {
   if (!saldos || saldos.length === 0) {
-    // Em aquisição — ainda não existe nenhum período disponível
-    return { html: periodoLinha({ label: 'Ano atual', pct: 0, corBar: 'var(--surface2)', usados: 0, restantes: 0 }), multi: false };
+    const corte = new Date(currentYear, 11, 31);
+    const proximo = (periodosTodos || []).find(p => parseDate(p.direitoEm) > corte);
+    const sub = proximo ? `Direito: ${formatDate(proximo.direitoEm)}` : '';
+    return { html: periodoLinha({ label: 'Ano atual', sub, pct: 0, corBarra: 'var(--surface2)', usados: 0, disponivel: 0 }), multi: false };
   }
 
   const comSaldo = saldos.filter(s => s.disponivel > 0);
@@ -1417,33 +1422,35 @@ function renderPeriodosGenerico(m, saldos, tipo) {
 
   if (ativos.length === 1) {
     const s = ativos[0];
-    return { html: periodoLinha({ label: 'Ano atual', pct: pctOf(s), corBar: corSaldo(s.disponivel), usados: s.usados, restantes: Math.max(0, s.disponivel) }), multi: false };
+    return { html: periodoLinha({ label: 'Ano atual', sub: `Direito: ${formatDate(s.direitoEm)}`, pct: pctOf(s), corBarra: corPessoa, usados: s.usados, disponivel: s.disponivel }), multi: false };
   }
 
   // 2+ períodos ativos simultâneos → linha consolidada (fechada por padrão) + toggle
   const totalUsados = ativos.reduce((a, s) => a + s.usados, 0);
   const totalTotal = ativos.reduce((a, s) => a + s.total, 0);
-  const totalRestante = ativos.reduce((a, s) => a + Math.max(0, s.disponivel), 0);
+  const totalRestanteRaw = ativos.reduce((a, s) => a + Math.max(0, s.disponivel), 0);
   const pctCons = totalTotal > 0 ? Math.min(100, (totalUsados / totalTotal) * 100) : 0;
-  const corCons = corSaldo(totalRestante);
   const aberto = !!saldoAcumuloAberto[m.id];
-  const chevron = aberto ? '▾' : '▸';
 
-  let html = `<div class="saldo-period-line saldo-period-consolidado" onclick="toggleSaldoAcumulo(${m.id})">
-    <div class="saldo-period-label">${intervaloAnos(ativos, tipo)}</div>
-    <div class="saldo-period-bar"><div class="saldo-period-bar-fill" style="width:${pctCons}%;background:${corCons}"></div></div>
+  let html = `<div class="saldo-period-line saldo-period-consolidado" onclick="toggleSaldoAcumulo(${m.id})" title="${aberto ? 'Clique para recolher' : 'Clique para ver os períodos'}">
+    <div class="saldo-period-label">
+      <div class="saldo-period-label-main">${intervaloAnos(ativos)}</div>
+      <div class="saldo-period-sub">${ativos.length} períodos</div>
+    </div>
+    <div class="saldo-period-bar"><div class="saldo-period-bar-fill" style="width:${pctCons}%;background:${corPessoa}"></div></div>
     <div class="saldo-period-metric"><span class="saldo-period-num" style="color:var(--ink2)">${totalUsados}</span><span class="saldo-period-metric-label">usados</span></div>
-    <div class="saldo-period-metric"><span class="saldo-period-num" style="color:var(--ink)">${totalRestante}</span><span class="saldo-period-metric-label">restantes</span></div>
-    <div class="saldo-period-chevron">${chevron}</div>
+    <div class="saldo-period-metric"><span class="saldo-period-num" style="color:${corRestante(totalRestanteRaw)}">${totalRestanteRaw}</span><span class="saldo-period-metric-label">restantes</span></div>
+    <div class="saldo-period-chevron${aberto ? ' saldo-chevron-aberto' : ''}">${CHEVRON_SVG}</div>
   </div>`;
 
   if (aberto) {
     html += ativos.map(s => periodoLinha({
-      label: labelPeriodo(s, tipo),
+      label: labelPeriodo(s),
+      sub: `Direito: ${formatDate(s.direitoEm)}`,
       pct: pctOf(s),
-      corBar: corSaldo(s.disponivel),
+      corBarra: corPessoa,
       usados: s.usados,
-      restantes: Math.max(0, s.disponivel),
+      disponivel: s.disponivel,
       expandido: true
     })).join('');
   }
@@ -1456,14 +1463,17 @@ function rowMembro(m) {
 
   if (m.tipo === 'diretor' || m.tipo === 'diretora') {
     const total = ferias.filter(x => x.funcId === m.id && x.inicio.startsWith(currentYear + '')).reduce((a, x) => a + x.dias, 0);
-    periodosHTML = periodoLinha({ label: 'Ano atual', pct: 20, corBar: '#8AA09A', usados: total, restantes: '—' });
+    // Diretores não têm teto real de dias — usamos 22 só como referência visual pra
+    // barra não ficar sempre cheia/vazia, igual à referência de dias úteis do PJ.
+    const pctDiretor = Math.min(100, (total / 22) * 100);
+    periodosHTML = periodoLinha({ label: 'Ano atual', pct: pctDiretor, corBarra: m.cor, usados: total, semRestante: true });
     multiPeriodo = false;
   } else if (m.tipo === 'pj') {
-    ({ html: periodosHTML, multi: multiPeriodo } = renderPeriodosGenerico(m, getSaldoPJ(m, currentYear), 'pj'));
+    ({ html: periodosHTML, multi: multiPeriodo } = renderPeriodosGenerico(m, getSaldoPJ(m, currentYear), getPeriodosAquisitivos(m), m.cor));
   } else if (m.tipo === 'estagiario') {
-    ({ html: periodosHTML, multi: multiPeriodo } = renderPeriodosGenerico(m, getSaldoEstagiario(m, currentYear), 'estagiario'));
+    ({ html: periodosHTML, multi: multiPeriodo } = renderPeriodosGenerico(m, getSaldoEstagiario(m, currentYear), getPeriodosEstagiario(m), m.cor));
   } else {
-    ({ html: periodosHTML, multi: multiPeriodo } = renderPeriodosGenerico(m, getSaldoCLT(m, currentYear), 'clt'));
+    ({ html: periodosHTML, multi: multiPeriodo } = renderPeriodosGenerico(m, getSaldoCLT(m, currentYear), getPeriodosAquisitivos(m), m.cor));
   }
 
   return `<div class="saldo-row">
@@ -1588,24 +1598,28 @@ function onFuncionarioChange() {
     const inicioValPJ = document.getElementById('form-inicio').value;
     const anoCortePJ = inicioValPJ ? parseInt(inicioValPJ.split('-')[0]) : new Date().getFullYear();
     const saldosPJ = getSaldoPJ(m, anoCortePJ);
+    const periodosPJ = getPeriodosAquisitivos(m);
+    const cortePJForm = new Date(anoCortePJ, 11, 31);
+    const proximoPJ = periodosPJ.find(p=>parseDate(p.direitoEm)>cortePJForm);
     if (saldosPJ.length === 0) {
-      container.innerHTML = `<div class="form-info">PJ — Nenhum período disponível ainda (direito nasce em ${anoCortePJ >= (parseDate(m.admissao).getFullYear()+1) ? anoCortePJ : parseDate(m.admissao).getFullYear()+1}).</div>`;
+      const mesesPJ = proximoPJ?Math.ceil((parseDate(proximoPJ.direitoEm)-hoje)/(86400000*30)):'?';
+      container.innerHTML = `<div class="form-info">PJ — Nenhum período disponível em ${anoCortePJ}. Próximo período completa em ${proximoPJ?formatDate(proximoPJ.direitoEm):'?'} (~${mesesPJ} meses).</div>`;
     } else {
       const comSaldoPJ = saldosPJ.filter(s=>s.disponivel>0);
-      const paraExibirPJ = comSaldoPJ.length>0 ? comSaldoPJ : [saldosPJ[saldosPJ.length-1]];
+      const paraExibirPJ = comSaldoPJ.length>0 ? comSaldoPJ : saldosPJ;
       const linhasPJ = paraExibirPJ.map((s,i)=>`
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:6px;">
           <input type="radio" name="periodo-pj" value="${s.numero}"
             ${i===0?'checked':''}
             style="accent-color:var(--accent);">
-          <span>${s.ano}
+          <span>${s.numero}º período (${formatDate(s.inicio)} – ${formatDate(s.fim)})
             · <strong>${s.disponivel} dias úteis disponíveis</strong> de ${s.total}
             · ${s.usados} usados</span>
         </label>`).join('');
       container.innerHTML = `<div class="form-info">
-        <div style="font-weight:600;margin-bottom:4px;">Selecione o ano (saldo PJ):</div>
+        <div style="font-weight:600;margin-bottom:4px;">Selecione o período aquisitivo:</div>
         ${linhasPJ}
-        <div style="font-size:11px;color:var(--ink3);margin-top:8px;">Anos com saldo pendente ficam disponíveis até serem utilizados.</div>
+        <div style="font-size:11px;color:var(--ink3);margin-top:8px;">Períodos baseados em ${anoCortePJ} — ajuste ao selecionar a data de início.</div>
       </div>`;
     }
   } else {
@@ -1703,22 +1717,23 @@ async function registrarFerias() {
       if (comSaldo.length>0) periodoAquisitivo = comSaldo[0].numero;
     }
   } else if (m.tipo==='pj') {
-    // periodoAquisitivo para PJ = ano ao qual os dias devem ser debitados
+    // periodoAquisitivo para PJ = número do período aquisitivo (mesmo modelo do CLT)
     const anoFeriasPJ = parseInt(inicio.split('-')[0]);
     const radio = document.querySelector('input[name="periodo-pj"]:checked');
     if (radio) {
       periodoAquisitivo = parseInt(radio.value);
-      const saldos = getSaldoPJ(m, Math.max(anoFeriasPJ, periodoAquisitivo));
+      // Validar se o período tem saldo suficiente
+      const saldos = getSaldoPJ(m, anoFeriasPJ);
       const saldo = saldos.find(s => s.numero === periodoAquisitivo);
       if (saldo && saldo.disponivel < dias) {
-        const confirmar = confirm(`Atenção: o saldo de ${periodoAquisitivo} tem apenas ${saldo.disponivel} dias disponíveis, mas você está registrando ${dias} dias. Deseja continuar mesmo assim?`);
+        const confirmar = confirm(`Atenção: este período tem apenas ${saldo.disponivel} dias disponíveis, mas você está registrando ${dias} dias. Deseja continuar mesmo assim?`);
         if (!confirmar) return;
       }
     } else {
-      // Sem radio selecionado: usar o ano mais antigo com saldo, senão o ano da data
+      // Sem radio selecionado: usar o período mais antigo com saldo no ano das férias
       const saldos = getSaldoPJ(m, anoFeriasPJ);
       const comSaldo = saldos.filter(s => s.disponivel > 0);
-      periodoAquisitivo = comSaldo.length > 0 ? comSaldo[0].numero : anoFeriasPJ;
+      periodoAquisitivo = comSaldo.length > 0 ? comSaldo[0].numero : periodoNumeroParaData(m, inicio);
     }
   }
   ferias.push({ id: Date.now(), funcId: id, inicio, fim, dias, obs, periodoAquisitivo, criadoEm: new Date().toISOString() });
@@ -1794,7 +1809,7 @@ function renderEquipe() {
       const saldosPJEq = getSaldoPJ(m, currentYear);
       detalhes=`<div class="func-detail">Regime: <strong>PJ</strong></div>
         <div class="func-detail">Admissão: <strong>${formatDate(m.admissao)}</strong></div>`;
-      if (saldosPJEq.length>0) saldosPJEq.forEach(s=>{detalhes+=`<div class="func-detail">Saldo ${s.ano}: <strong>${s.disponivel} / ${s.total} dias úteis</strong></div>`;});
+      if (saldosPJEq.length>0) saldosPJEq.forEach(s=>{detalhes+=`<div class="func-detail">${s.numero}º período: <strong>${s.disponivel} / ${s.total} dias úteis</strong></div>`;});
       else detalhes+=`<div class="func-detail">Nenhum período disponível ainda.</div>`;
     } else if (m.tipo==='estagiario') {
       const saldos=getSaldoEstagiario(m, currentYear);
@@ -2121,10 +2136,11 @@ function exportExcel() {
   MEMBROS.forEach(m=>membrosData.push([m.nome,TIPO_LABEL[m.tipo],m.admissao||'—',m.diasAno||'—']));
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(membrosData),'Equipe');
 
-  const feriasData=[['Membro da Equipe','Tipo','Início','Fim','Dias','Tipo de Dia','Observação']];
+  const feriasData=[['Membro da Equipe','Tipo','Início','Fim','Dias','Tipo de Dia','Período Aquisitivo','Observação']];
   ferias.sort((a,b)=>a.inicio.localeCompare(b.inicio)).forEach(x=>{
     const m=getMembro(x.funcId);
-    feriasData.push([m.nome,TIPO_LABEL[m.tipo],formatDate(x.inicio),formatDate(x.fim),x.dias,m.tipo==='clt'?'Corridos':'Úteis',x.obs||'']);
+    const periodoTxt = x.periodoAquisitivo ? `${x.periodoAquisitivo}º período` : '—';
+    feriasData.push([m.nome,TIPO_LABEL[m.tipo],formatDate(x.inicio),formatDate(x.fim),x.dias,m.tipo==='clt'?'Corridos':'Úteis',periodoTxt,x.obs||'']);
   });
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(feriasData),'Férias');
   XLSX.writeFile(wb,`ferias_${currentYear}.xlsx`);
